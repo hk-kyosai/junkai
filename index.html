@@ -120,6 +120,11 @@ nav svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8}
   paint-order:stroke;stroke:#F4F7FA;stroke-width:4px;stroke-linejoin:round}
 #svgmap circle.pin{stroke:#fff;stroke-width:1.4;cursor:pointer}
 #svgmap circle.pin:hover{stroke-width:2.4}
+#locate{position:absolute;right:10px;top:10px;z-index:500;width:42px;height:42px;
+  border-radius:11px;background:var(--surface);box-shadow:var(--shadow);
+  display:flex;align-items:center;justify-content:center;color:var(--ink-2)}
+#locate.on{color:var(--navy)}
+#locate svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.8}
 #map-msg{position:absolute;left:10px;right:10px;bottom:10px;background:rgba(22,32,43,.9);
   color:#fff;font-size:11.5px;line-height:1.55;padding:9px 11px;border-radius:8px;display:none}
 #map-msg.on{display:block}
@@ -213,6 +218,9 @@ nav svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8}
       <div id="map-wrap">
         <div id="map"></div>
         <svg id="svgmap" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid meet"></svg>
+        <button id="locate" onclick="locateMe()" aria-label="現在地を表示">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3" stroke-linecap="round"/></svg>
+        </button>
         <div id="map-msg"></div>
       </div>
       <div class="legend">
@@ -395,6 +403,8 @@ function setFilter(g,v){
 function renderRadar(){
   const r = document.getElementById('radar');
   r.classList.toggle('on', !!watchId);
+  const lb = document.getElementById('locate');
+  if(lb) lb.classList.toggle('on', !!pos);
   if(!watchId) return;
   document.getElementById('radar-acc').textContent = pos ? '誤差 ±' + Math.round(pos.acc) + 'm' : '測位中…';
   const near = rows().filter(x => x.d != null && (x.c.status === 'due' || x.c.status === 'soon'))
@@ -592,9 +602,37 @@ function drawSvgMap(){
   svg.innerHTML = g;
 }
 
+let meMarker = null, meCircle = null;
+function drawMe(){
+  if(mapMode !== 'tile' || !map) return;
+  if(!pos){
+    if(meMarker){ map.removeLayer(meMarker); map.removeLayer(meCircle); meMarker = meCircle = null; }
+    return;
+  }
+  const ll = [pos.lat, pos.lng];
+  if(meMarker){
+    meMarker.setLatLng(ll); meCircle.setLatLng(ll).setRadius(pos.acc);
+  }else{
+    meCircle = L.circle(ll, {radius:pos.acc, color:'#1B4D8F', weight:1,
+      fillColor:'#1B4D8F', fillOpacity:.12}).addTo(map);
+    meMarker = L.circleMarker(ll, {radius:7, color:'#fff', weight:3,
+      fillColor:'#1B4D8F', fillOpacity:1}).addTo(map);
+  }
+}
+
+/* 現在地ボタン：未開始なら巡回モードを起動し、取得済みならその位置へ寄せる */
+function locateMe(){
+  if(!watchId){ toggleWatch(); toast('現在地を取得しています…'); return; }
+  if(!pos) return toast('現在地を取得しています…');
+  if(mapMode === 'tile' && map) map.setView([pos.lat, pos.lng], 15);
+  else drawSvgMap();
+  toast('現在地に移動しました');
+}
+
 function drawMarkers(){
   if(mapMode === 'svg'){ drawSvgMap(); return; }
   if(!markers) return;
+  drawMe();
   markers.clearLayers();
   rows().forEach(({p,c}) => {
     L.circleMarker([p.lat,p.lng], {
@@ -619,17 +657,25 @@ function toggleWatch(){
   watchId = navigator.geolocation.watchPosition(p => {
     pos = {lat:p.coords.latitude, lng:p.coords.longitude, acc:p.coords.accuracy};
     checkProximity(); render(); renderSettings();
-  }, () => {
-    toast('位置情報を取得できません。端末の設定を確認してください');
-    watchId = null; renderSettings(); render();
-  }, {enableHighAccuracy:true, maximumAge:5000, timeout:20000});
+  }, err => {
+    const msg = {
+      1:'位置情報が許可されていません。ブラウザのアドレスバーの鍵マークから許可してください',
+      2:'現在地を取得できません。屋外に出るか、端末の位置情報をオンにしてください',
+      3:'現在地の取得に時間がかかっています。そのままお待ちください'
+    }[err.code] || '位置情報を取得できませんでした';
+    toast(msg);
+    if(err.code !== 3){ navigator.geolocation.clearWatch(watchId); watchId = null; }
+    renderSettings(); render();
+  }, {enableHighAccuracy:true, maximumAge:5000, timeout:30000});
   renderSettings(); render(); toast('巡回モードを開始しました');
 }
 function checkProximity(){
   if(!pos) return;
   for(const p of PLACES){
     const c = compute(p);
-    const want = cfg.alertScope === 'due' ? c.status === 'due' : (c.status === 'due' || c.status === 'soon');
+    const want = cfg.alertScope === 'all' ? true
+               : cfg.alertScope === 'due' ? c.status === 'due'
+               : (c.status === 'due' || c.status === 'soon');
     const d = distance(pos.lat, pos.lng, p.lat, p.lng);
     if(want && d <= cfg.radius && !alerted[p.id]){
       alerted[p.id] = true; fireAlert(p, c, d);
@@ -637,25 +683,44 @@ function checkProximity(){
     if(alerted[p.id] && d > cfg.radius * 2.5) delete alerted[p.id];  // 離れたら再武装
   }
 }
-function fireAlert(p, c, d){
+function fireAlert(p, c, d, isTest){
   if(navigator.vibrate) navigator.vibrate([180,90,180]);
   beep();
   if('Notification' in window && Notification.permission === 'granted')
-    new Notification('補充対象が近くにあります', {body:`${p.n}（約${fmtDist(d)}）`});
+    new Notification(isTest ? 'テスト通知' : '補充対象が近くにあります',
+      {body:`${p.n}${d == null ? '' : `（約${fmtDist(d)}）`}`});
   const a = document.getElementById('alert');
   a.innerHTML = `
-    <div class="lead">補充対象が近くにあります</div>
+    <div class="lead">${isTest ? 'これはテスト通知です' : '補充対象が近くにあります'}</div>
     <h3>${p.n}</h3>
-    <div class="d">${fmtDist(d)}</div>
+    <div class="d">${d == null ? '—' : fmtDist(d)}</div>
     <div style="font-size:13px;opacity:.9">${p.a}</div>
     <div style="font-size:13px;opacity:.9;margin-top:6px">
-      ${c.left <= 0 ? Math.abs(c.left) + '日超過' : 'あと' + c.left + '日'}</div>
+      ${c.left === null ? '未記録' : c.left <= 0 ? Math.abs(c.left) + '日超過' : 'あと' + c.left + '日'}</div>
     <div class="acts">
       <button class="a-ghost" onclick="document.getElementById('alert').classList.remove('on')">あとで</button>
       <button class="a-primary" onclick="document.getElementById('alert').classList.remove('on');openSheet(${p.id})">補充を記録</button>
     </div>`;
+  a.style.background = isTest ? 'var(--navy)' : 'var(--due)';
+  a.querySelector('.a-primary').style.color = isTest ? 'var(--navy)' : 'var(--due)';
   a.classList.add('on');
 }
+/* テスト用：いちばん近い設置先（未測位なら先頭）で通知を1回出す */
+function testAlert(){
+  if('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+  let target = PLACES[0], d = null;
+  if(pos){
+    const sorted = PLACES.map(p => ({p, d:distance(pos.lat, pos.lng, p.lat, p.lng)}))
+                         .sort((a,b) => a.d - b.d)[0];
+    target = sorted.p; d = sorted.d;
+  }
+  fireAlert(target, compute(target), d, true);
+}
+function nearestDist(){
+  if(!pos) return null;
+  return Math.min(...PLACES.map(p => distance(pos.lat, pos.lng, p.lat, p.lng)));
+}
+
 function beep(){
   try{
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -684,21 +749,36 @@ function renderSettings(){
       <h3>通知する距離</h3>
       <p>設置先にこの距離まで近づいたら知らせます。市街地は200〜300m、郊外は500m前後が目安です。</p>
       <div class="row">
-        <input type="range" min="100" max="1000" step="50" value="${cfg.radius}"
+        <input type="range" min="100" max="3000" step="50" value="${cfg.radius}"
           oninput="setCfg('radius', +this.value)">
-        <span class="val">${cfg.radius} m</span>
+        <span class="val">${cfg.radius >= 1000 ? (cfg.radius/1000).toFixed(2).replace(/0$/,'') + ' km' : cfg.radius + ' m'}</span>
       </div>
     </div>
 
     <div class="setting">
       <h3>通知の対象</h3>
       <p>期限切れだけにするか、間もなく期限を迎える先も含めるかを選べます。</p>
-      <div class="row" style="gap:7px">
+      <div class="row" style="gap:7px;flex-wrap:wrap">
         <button class="chip" aria-pressed="${cfg.alertScope==='due'}"
           onclick="setCfg('alertScope','due')">要補充のみ</button>
         <button class="chip" aria-pressed="${cfg.alertScope==='soon'}"
           onclick="setCfg('alertScope','soon')">間もなくも含める</button>
+        <button class="chip" aria-pressed="${cfg.alertScope==='all'}"
+          onclick="setCfg('alertScope','all')">すべて（テスト用）</button>
       </div>
+      ${cfg.alertScope === 'all' ? `<p style="margin:10px 0 0;color:var(--due)">
+        テスト用の設定です。補充が不要な設置先でも通知します。確認が済んだら戻してください。</p>` : ''}
+    </div>
+
+    <div class="setting">
+      <h3>動作テスト</h3>
+      <p>通知の見え方、音、振動をその場で確かめられます。実際に近づかなくても鳴らせます。</p>
+      <button class="btn btn-line" style="width:100%;margin-bottom:8px" onclick="testAlert()">
+        通知を1回鳴らしてみる</button>
+      <p style="margin:0">
+        巡回中の実地テストは、通知の対象を「すべて」に、通知する距離を1km前後に広げるのが手軽です。
+        いま最寄りの設置先まで ${pos ? fmtDist(nearestDist()) : '—（巡回モード開始後に表示）'}。
+      </p>
     </div>
 
     <div class="setting">
@@ -756,7 +836,10 @@ function tab(name){
   });
   document.getElementById('tools').style.display = name === 'list' ? 'flex' : 'none';
   document.getElementById('filters').style.display = name === 'set' ? 'none' : 'flex';
-  if(name === 'map') initMap();
+  if(name === 'map'){
+    initMap();
+    if(!watchId) setTimeout(() => toast('右上のボタンで現在地を表示できます'), 400);
+  }
   if(name === 'set') renderSettings();
 }
 let toastTimer;
