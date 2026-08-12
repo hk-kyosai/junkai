@@ -1,0 +1,1114 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>パンフ台巡回</title>
+<meta name="theme-color" content="#16202B">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="パンフ台巡回">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="apple-touch-icon-fallback" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%2316202B'/%3E%3Ccircle cx='90' cy='72' r='24' fill='none' stroke='%23fff' stroke-width='10'/%3E%3Cpath d='M90 108c0 24-30 30-30 30h60s-30-6-30-30z' fill='%23fff'/%3E%3Ccircle cx='90' cy='72' r='8' fill='%23CC2B2B'/%3E%3C/svg%3E">
+<style>
+:root{
+  --paper:#EDF0F3; --surface:#FFFFFF; --ink:#16202B; --ink-2:#5A6875; --line:#D8DFE6;
+  --navy:#1B4D8F;
+  --seimei:#1B6E8F; --kasai:#8A5A2B;
+  --due:#CC2B2B; --soon:#B87400; --ok:#2E7D5B;
+  --shadow:0 1px 2px rgba(22,32,43,.07), 0 4px 14px rgba(22,32,43,.06);
+  --tap:48px;
+  --jp:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP","Meiryo",system-ui,sans-serif;
+  --num:ui-monospace,"SF Mono","Roboto Mono","Menlo",monospace;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{
+  font-family:var(--jp); background:var(--paper); color:var(--ink);
+  font-size:15px; line-height:1.5; overscroll-behavior-y:none;
+}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+input,select{font:inherit;color:inherit}
+
+/* ---------- shell ---------- */
+#app{display:flex;flex-direction:column;height:100dvh;max-width:560px;margin:0 auto;background:var(--paper)}
+header{
+  background:var(--surface);border-bottom:1px solid var(--line);
+  padding:calc(env(safe-area-inset-top) + 10px) 14px 0; flex:none;
+}
+.brand{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}
+.brand h1{font-size:15px;font-weight:700;margin:0;letter-spacing:.02em}
+.brand .count{font-family:var(--num);font-size:12px;color:var(--ink-2)}
+
+/* ---------- radar (signature) ---------- */
+#radar{
+  display:none;background:var(--ink);color:#fff;margin:0 -14px;padding:10px 14px 12px;
+}
+#radar.on{display:block}
+.radar-head{display:flex;justify-content:space-between;align-items:center;font-size:11px;
+  letter-spacing:.12em;color:#9FB0C0;margin-bottom:8px}
+.pulse{display:inline-block;width:7px;height:7px;border-radius:50%;background:#4ADE80;margin-right:6px;
+  animation:pulse 1.8s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}
+.radar-row{display:flex;align-items:center;gap:10px;padding:5px 0}
+.radar-row+.radar-row{border-top:1px solid rgba(255,255,255,.09)}
+.radar-dist{font-family:var(--num);font-size:19px;font-weight:600;font-variant-numeric:tabular-nums;
+  min-width:78px;text-align:right;letter-spacing:-.02em}
+.radar-name{flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.radar-tag{font-size:10px;padding:2px 6px;border-radius:3px;font-weight:700;flex:none}
+.radar-empty{font-size:12px;color:#9FB0C0;padding:6px 0}
+
+/* ---------- filters ---------- */
+.filters{display:flex;gap:6px;overflow-x:auto;padding:10px 0;scrollbar-width:none}
+.filters::-webkit-scrollbar{display:none}
+.chip{flex:none;padding:7px 13px;border-radius:999px;border:1px solid var(--line);
+  background:var(--surface);font-size:13px;white-space:nowrap;transition:.12s}
+.chip[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.tools{display:flex;gap:8px;padding-bottom:10px}
+.tools input[type=search]{flex:1;min-width:0;padding:9px 12px;border:1px solid var(--line);
+  border-radius:9px;background:var(--paper)}
+.tools select{padding:9px 8px;border:1px solid var(--line);border-radius:9px;background:var(--paper)}
+
+/* ---------- main ---------- */
+main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 14px 24px}
+.panel{display:none}
+.panel.on{display:block}
+
+/* ---------- card ---------- */
+.card{background:var(--surface);border-radius:12px;box-shadow:var(--shadow);margin-bottom:9px;
+  display:flex;overflow:hidden}
+.edge{width:5px;flex:none}
+.card-body{flex:1;min-width:0;padding:11px 12px}
+.card-top{display:flex;align-items:flex-start;gap:10px}
+.card-name{font-weight:700;font-size:14.5px;line-height:1.35;flex:1;min-width:0}
+.card-sub{font-size:11.5px;color:var(--ink-2);margin-top:2px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.days{font-family:var(--num);text-align:right;flex:none;line-height:1}
+.days b{display:block;font-size:25px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.03em}
+.days span{font-size:10px;letter-spacing:.02em;color:var(--ink-2)}
+.meters{display:flex;gap:7px;margin-top:9px}
+.meter{flex:1;background:var(--paper);border-radius:6px;padding:5px 7px}
+.meter-top{display:flex;justify-content:space-between;align-items:center;font-size:10.5px;margin-bottom:4px}
+.meter-top em{font-style:normal;font-weight:700;letter-spacing:.04em}
+.meter-top i{font-style:normal;font-family:var(--num);color:var(--ink-2)}
+.bar{height:3px;border-radius:2px;background:var(--line);overflow:hidden}
+.bar>div{height:100%;border-radius:2px}
+.card-actions{display:flex;gap:7px;margin-top:10px}
+.btn{flex:1;height:38px;border-radius:8px;font-size:13px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;gap:5px}
+.btn-fill{background:var(--ink);color:#fff}
+.btn-line{border:1px solid var(--line);background:var(--surface)}
+.dist-pill{font-family:var(--num);font-size:11px;color:var(--ink-2);
+  background:var(--paper);padding:2px 7px;border-radius:5px;margin-left:6px}
+
+/* ---------- tabs ---------- */
+nav{display:flex;background:var(--surface);border-top:1px solid var(--line);flex:none;
+  padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;height:var(--tap);display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:2px;font-size:10px;color:var(--ink-2);letter-spacing:0}
+nav button[aria-pressed="true"]{color:var(--navy);font-weight:700;box-shadow:inset 0 2px 0 var(--navy)}
+nav svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8}
+
+/* ---------- map ---------- */
+#map-wrap{position:relative;height:62dvh;min-height:320px;border-radius:12px;overflow:hidden;
+  box-shadow:var(--shadow);background:var(--surface)}
+#map{position:absolute;inset:0;display:none}
+#map.on{display:block}
+#svgmap{position:absolute;inset:0;width:100%;height:100%;display:none;background:#F4F7FA}
+#svgmap.on{display:block}
+#svgmap .sea{fill:#DCE6EE}
+#svgmap .grid{stroke:#C9D6E0;stroke-width:.7;stroke-dasharray:3 4}
+#svgmap .lbl{font-family:var(--num);font-size:11px;fill:#8496A6}
+#svgmap .place{font-family:var(--jp);font-size:15px;font-weight:700;fill:#5A6875;
+  paint-order:stroke;stroke:#F4F7FA;stroke-width:4px;stroke-linejoin:round}
+#svgmap circle.pin{stroke:#fff;stroke-width:1.4;cursor:pointer}
+#svgmap circle.pin:hover{stroke-width:2.4}
+#locate{position:absolute;right:10px;top:10px;z-index:500;width:42px;height:42px;
+  border-radius:11px;background:var(--surface);box-shadow:var(--shadow);
+  display:flex;align-items:center;justify-content:center;color:var(--ink-2)}
+#locate.on{color:var(--navy)}
+#locate svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.8}
+#map-msg{position:absolute;left:10px;right:10px;bottom:10px;background:rgba(22,32,43,.9);
+  color:#fff;font-size:11.5px;line-height:1.55;padding:9px 11px;border-radius:8px;display:none}
+#map-msg.on{display:block}
+#map-msg button{text-decoration:underline;font-weight:700;margin-left:6px}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--ink-2);
+  padding:9px 2px 0}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px}
+
+/* ---------- sheet ---------- */
+.scrim{position:fixed;inset:0;background:rgba(22,32,43,.45);display:none;z-index:900}
+.scrim.on{display:block}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:901;background:var(--surface);
+  border-radius:16px 16px 0 0;padding:16px 16px calc(env(safe-area-inset-bottom) + 16px);
+  max-width:560px;margin:0 auto;transform:translateY(101%);transition:transform .22s cubic-bezier(.32,.72,0,1);
+  max-height:88dvh;overflow-y:auto}
+.sheet.on{transform:none}
+.sheet h2{font-size:16px;margin:0 0 2px}
+.sheet .addr{font-size:12px;color:var(--ink-2);margin-bottom:14px}
+.field{margin-bottom:13px}
+.field label{display:block;font-size:12px;font-weight:700;margin-bottom:5px}
+.field .hint{font-weight:400;color:var(--ink-2);margin-left:5px}
+.stepper{display:flex;align-items:stretch;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.stepper button{width:52px;font-size:20px;background:var(--paper);color:var(--ink-2)}
+.stepper input{flex:1;min-width:0;text-align:center;border:0;font-family:var(--num);
+  font-size:19px;font-weight:600;background:var(--surface)}
+.row2{display:flex;gap:9px}
+.row2>*{flex:1;min-width:0}
+.note{background:var(--paper);border-radius:9px;padding:10px 11px;font-size:12px;
+  color:var(--ink-2);line-height:1.6;margin-bottom:13px}
+.note b{color:var(--ink);font-family:var(--num)}
+
+/* ---------- alert takeover ---------- */
+#alert{position:fixed;inset:0;z-index:1000;background:var(--due);color:#fff;display:none;
+  flex-direction:column;align-items:center;justify-content:center;text-align:center;
+  padding:26px 22px calc(env(safe-area-inset-bottom) + 26px);gap:6px}
+#alert.on{display:flex;animation:sirenIn .3s ease-out}
+#alert.on::before{content:'';position:absolute;inset:0;background:#fff;opacity:0;
+  animation:siren 1.3s ease-in-out infinite;pointer-events:none}
+@keyframes sirenIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
+@keyframes siren{0%,100%{opacity:0}45%{opacity:.16}}
+#alert>*{position:relative;z-index:1}
+#alert .lead{font-size:15px;font-weight:700;letter-spacing:.04em;opacity:.9}
+#alert h3{font-size:34px;margin:8px 0 0;line-height:1.25;font-weight:800;
+  text-wrap:balance;max-width:14em}
+#alert .d{font-family:var(--num);font-size:76px;font-weight:700;letter-spacing:-.04em;
+  margin:10px 0 2px;line-height:1}
+#alert .addr{font-size:15px;opacity:.9;max-width:22em}
+#alert .left{font-size:17px;font-weight:700;margin-top:8px;
+  background:rgba(255,255,255,.18);padding:5px 14px;border-radius:999px}
+#alert .acts{display:flex;gap:11px;margin-top:26px;width:100%;max-width:400px}
+#alert .acts button{flex:1;height:62px;border-radius:13px;font-weight:800;font-size:17px}
+.a-primary{background:#fff;color:var(--due)}
+.a-ghost{border:2px solid rgba(255,255,255,.65);color:#fff}
+.a-nav{margin-top:11px;width:100%;max-width:400px;height:52px;border-radius:13px;
+  background:rgba(255,255,255,.18);color:#fff;font-weight:700;font-size:15px}
+
+/* ---------- route ---------- */
+.route-sum{display:flex;gap:8px;margin-top:4px}
+.route-sum>div{flex:1;background:var(--paper);border-radius:8px;padding:8px 6px;text-align:center}
+.route-sum b{display:block;font-family:var(--num);font-size:20px;font-weight:600;letter-spacing:-.02em}
+.route-sum span{font-size:10px;color:var(--ink-2)}
+.stop{display:flex;align-items:center;gap:10px;background:var(--surface);border-radius:11px;
+  box-shadow:var(--shadow);padding:9px 11px;margin-bottom:7px}
+.stop-no{width:26px;height:26px;border-radius:50%;background:var(--navy);color:#fff;flex:none;
+  font-family:var(--num);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.stop-body{flex:1;min-width:0}
+.stop-name{font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stop-sub{font-size:11.5px;color:var(--ink-2);margin-top:1px}
+.stop-ops{display:flex;gap:2px;flex:none}
+.stop-ops button{width:30px;height:30px;border-radius:7px;color:var(--ink-2);font-size:12px}
+.stop-ops button:active{background:var(--paper)}
+.add-row{display:flex;align-items:center;gap:9px;width:100%;padding:9px 2px;text-align:left;
+  border-top:1px solid var(--line)}
+.add-plus{width:22px;height:22px;border-radius:6px;background:var(--paper);color:var(--navy);
+  font-weight:700;display:flex;align-items:center;justify-content:center;flex:none;font-size:13px}
+.add-name{flex:1;min-width:0;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.add-sub{font-family:var(--num);font-size:11px;color:var(--ink-2);flex:none}
+
+/* ---------- settings ---------- */
+.setting{background:var(--surface);border-radius:12px;box-shadow:var(--shadow);
+  padding:13px 14px;margin-bottom:9px}
+.setting h3{font-size:13px;margin:0 0 3px}
+.setting p{font-size:12px;color:var(--ink-2);margin:0 0 11px;line-height:1.6}
+.setting .row{display:flex;align-items:center;gap:10px}
+.setting input[type=range]{flex:1}
+.val{font-family:var(--num);font-size:13px;min-width:62px;text-align:right}
+.empty{text-align:center;color:var(--ink-2);font-size:13px;padding:44px 20px;line-height:1.8}
+.toast{position:fixed;left:50%;bottom:78px;transform:translateX(-50%) translateY(14px);
+  background:var(--ink);color:#fff;padding:11px 17px;border-radius:9px;font-size:13px;
+  opacity:0;transition:.22s;z-index:950;pointer-events:none;max-width:88vw;text-align:center}
+.toast.on{opacity:1;transform:translateX(-50%)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+:focus-visible{outline:2.5px solid var(--navy);outline-offset:2px}
+</style>
+
+<div id="app">
+  <header>
+    <div class="brand">
+      <h1>パンフ台巡回</h1>
+      <span class="count" id="count"></span>
+    </div>
+
+    <div id="radar">
+      <div class="radar-head">
+        <span><span class="pulse"></span>巡回中 — 近い順</span>
+        <span id="radar-acc"></span>
+      </div>
+      <div id="radar-list"></div>
+    </div>
+
+    <div class="tools" id="tools">
+      <input type="search" id="q" placeholder="店名・住所で探す" autocomplete="off">
+      <select id="sort">
+        <option value="days">残日数順</option>
+        <option value="dist">近い順</option>
+        <option value="name">名前順</option>
+      </select>
+    </div>
+    <div class="filters" id="filters"></div>
+  </header>
+
+  <main>
+    <section class="panel on" id="p-list"><div id="list"></div></section>
+    <section class="panel" id="p-map">
+      <div id="map-wrap">
+        <div id="map"></div>
+        <svg id="svgmap" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid meet"></svg>
+        <button id="locate" onclick="locateMe()" aria-label="現在地を表示">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3" stroke-linecap="round"/></svg>
+        </button>
+        <div id="map-msg"></div>
+      </div>
+      <div class="legend">
+        <span><i style="background:var(--due)"></i>要補充</span>
+        <span><i style="background:var(--soon)"></i>間もなく</span>
+        <span><i style="background:var(--ok)"></i>まだ余裕</span>
+        <span><i style="background:#8898A8"></i>未記録</span>
+      </div>
+    </section>
+    <section class="panel" id="p-route"></section>
+    <section class="panel" id="p-set"></section>
+  </main>
+
+  <nav>
+    <button id="t-list" aria-pressed="true" onclick="tab('list')">
+      <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round"/></svg>一覧</button>
+    <button id="t-map" aria-pressed="false" onclick="tab('map')">
+      <svg viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2ZM9 4v14M15 6v14" stroke-linejoin="round"/></svg>地図</button>
+    <button id="t-route" aria-pressed="false" onclick="tab('route')">
+      <svg viewBox="0 0 24 24"><circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="5" r="2.5"/><path d="M8.5 19h6a3.5 3.5 0 0 0 0-7h-5a3.5 3.5 0 0 1 0-7h6" stroke-linecap="round"/></svg>ルート</button>
+    <button id="t-set" aria-pressed="false" onclick="tab('set')">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1" stroke-linecap="round"/></svg>設定</button>
+  </nav>
+</div>
+
+<div class="scrim" id="scrim" onclick="closeSheet()"></div>
+<div class="sheet" id="sheet"></div>
+<div id="alert"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const PLACES = [{"id":1,"n":"アルゾ青崎店","a":"広島県安芸郡府中町青崎東15-51","k":"スーパー","g":"アルゾ／万惣","c":"安芸郡","lat":34.375696,"lng":132.514453,"u":1,"ps":30,"pf":30},{"id":2,"n":"アルゾ可部店","a":"広島県広島市安佐北区亀山五丁目6-22","k":"スーパー","g":"アルゾ／万惣","c":"広島市","lat":34.525318,"lng":132.500948,"u":1,"ps":30,"pf":30},{"id":3,"n":"アルゾ高取店","a":"広島県広島市安佐南区長楽寺1丁目10-2","k":"スーパー","g":"アルゾ／万惣","c":"広島市","lat":34.472848,"lng":132.433432,"u":1,"ps":30,"pf":30},{"id":4,"n":"アルゾ五日市利松店","a":"広島県広島市佐伯区利松一丁目10-66","k":"スーパー","g":"アルゾ／万惣","c":"広島市","lat":34.396148,"lng":132.363633,"u":1,"ps":30,"pf":30},{"id":5,"n":"アルゾ井口台店","a":"広島県広島市西区井口台二丁目1-25","k":"スーパー","g":"アルゾ／万惣","c":"広島市","lat":34.377299,"lng":132.377342,"u":1,"ps":30,"pf":30},{"id":6,"n":"アルゾSELECT牛田店","a":"広島県広島市東区牛田本町二丁目1-2-101","k":"スーパー","g":"アルゾ／万惣","c":"広島市","lat":34.4118,"lng":132.471333,"u":1,"ps":30,"pf":30},{"id":7,"n":"万惣海田店","a":"広島県安芸郡海田町曙町1-31","k":"スーパー","g":"アルゾ／万惣","c":"安芸郡","lat":34.369067,"lng":132.541384,"u":1,"ps":30,"pf":30},{"id":8,"n":"万惣串戸店","a":"広島県廿日市市串戸五丁目11-18","k":"スーパー","g":"アルゾ／万惣","c":"廿日市市","lat":34.347371,"lng":132.318768,"u":1,"ps":30,"pf":30},{"id":9,"n":"アルゾSELECT呉東中央店","a":"広島県呉市東中央三丁目5-1","k":"スーパー","g":"アルゾ／万惣","c":"呉市","lat":34.244753,"lng":132.566792,"u":1,"ps":30,"pf":30},{"id":10,"n":"万惣呉広店","a":"広島県呉市広古新開二丁目12-37","k":"スーパー","g":"アルゾ／万惣","c":"呉市","lat":34.2355,"lng":132.615194,"u":1,"ps":30,"pf":30},{"id":11,"n":"万惣庚午店","a":"広島県広島市西区庚午南二丁目35-7","k":"スーパー","g":"アルゾ／万惣","c":"広島市","lat":34.380141,"lng":132.410457,"u":1,"ps":30,"pf":30},{"id":12,"n":"アルゾ高陽深川店","a":"広島県広島市安佐北区深川一丁目52-27","k":"スーパー","g":"アルゾ／万惣","c":"広島市","lat":34.487726,"lng":132.519251,"u":1,"ps":30,"pf":30},{"id":13,"n":"万惣高屋店","a":"広島県東広島市高屋町桧山248-2","k":"スーパー","g":"アルゾ／万惣","c":"東広島市","lat":34.440623,"lng":132.764786,"u":1,"ps":30,"pf":30},{"id":14,"n":"アルゾ千代田店","a":"広島県北広島町古保利318-1","k":"スーパー","g":"アルゾ／万惣","c":"北広島町","lat":34.678629,"lng":132.535767,"u":1,"ps":30,"pf":30},{"id":15,"n":"アルゾ中須店","a":"広島県広島市安佐南区中須一丁目9-7","k":"スーパー","g":"アルゾ／万惣","c":"広島市","lat":34.458807,"lng":132.473683,"u":1,"ps":30,"pf":30},{"id":16,"n":"万惣府中店","a":"広島県安芸郡府中町本町四丁目6-25","k":"スーパー","g":"アルゾ／万惣","c":"安芸郡","lat":34.398407,"lng":132.505453,"u":1,"ps":30,"pf":30},{"id":17,"n":"万惣本浦店","a":"広島県広島市南区東本浦町16-23","k":"スーパー","g":"アルゾ／万惣","c":"広島市","lat":34.375028,"lng":132.490695,"u":1,"ps":30,"pf":30},{"id":18,"n":"マルシェー五日市中央店","a":"広島県広島市佐伯区五日市中央四丁目15-20","k":"スーパー","g":"アルゾ／万惣","c":"広島市","lat":34.371136,"lng":132.355577,"u":1,"ps":30,"pf":30},{"id":19,"n":"マルシェー川内店","a":"広島県広島市安佐南区川内一丁目6-19","k":"スーパー","g":"アルゾ／万惣","c":"広島市","lat":34.460167,"lng":132.484557,"u":1,"ps":30,"pf":30},{"id":20,"n":"マルシェー光南店","a":"広島県広島市中区光南一丁目12-20","k":"スーパー","g":"アルゾ／万惣","c":"広島市","lat":34.367058,"lng":132.448718,"u":1,"ps":30,"pf":30},{"id":21,"n":"マルシェー長束店","a":"広島県広島市安佐南区長束五丁目14-22","k":"スーパー","g":"アルゾ／万惣","c":"広島市","lat":34.432817,"lng":132.453252,"u":1,"ps":30,"pf":30},{"id":22,"n":"万惣緑井店","a":"広島県広島市安佐南区緑井二丁目9-5","k":"スーパー","g":"アルゾ／万惣","c":"広島市","lat":34.467792,"lng":132.471587,"u":1,"ps":30,"pf":30},{"id":23,"n":"万惣焼山店","a":"広島県呉市焼山中央二丁目6-51","k":"スーパー","g":"アルゾ／万惣","c":"呉市","lat":34.295904,"lng":132.55839,"u":1,"ps":30,"pf":30},{"id":24,"n":"万惣矢野南店","a":"広島県広島市安芸区矢野南二丁目1-15","k":"スーパー","g":"アルゾ／万惣","c":"広島市","lat":34.343794,"lng":132.529554,"u":1,"ps":30,"pf":30},{"id":25,"n":"万惣吉田店","a":"広島県安芸高田市吉田町吉田830-1","k":"スーパー","g":"アルゾ／万惣","c":"安芸高田市","lat":34.666793,"lng":132.705854,"u":1,"ps":30,"pf":30},{"id":26,"n":"アルゾ尾道店","a":"広島県尾道市栗原町9339","k":"スーパー","g":"アルゾ／万惣","c":"尾道市","lat":34.428054,"lng":133.189799,"u":1,"ps":30,"pf":30},{"id":27,"n":"スパーク五日市店","a":"広島県広島市佐伯区海老園1-5-42","k":"スーパー","g":"スパーク","c":"広島市","lat":34.363753,"lng":132.359201,"u":1,"ps":30,"pf":30},{"id":28,"n":"スパーク五日市駅前店","a":"広島県広島市佐伯区吉見園1-27","k":"スーパー","g":"スパーク","c":"広島市","lat":34.366401,"lng":132.36866,"u":1,"ps":30,"pf":30},{"id":29,"n":"スパーク江波店","a":"広島県広島市中区江波二本松2-7-20","k":"スーパー","g":"スパーク","c":"広島市","lat":34.366429,"lng":132.431316,"u":1,"ps":30,"pf":30},{"id":30,"n":"スパーク観音店","a":"広島県広島市西区南観音2-4-20","k":"スーパー","g":"スパーク","c":"広島市","lat":34.38479,"lng":132.43263,"u":1,"ps":30,"pf":30},{"id":31,"n":"スパークニュー庚午店","a":"広島県広島市西区庚午北2-19-2","k":"スーパー","g":"スパーク","c":"広島市","lat":34.389552,"lng":132.418649,"u":1,"ps":30,"pf":30},{"id":32,"n":"スパーク光南店","a":"広島県広島市中区光南3-1-1","k":"スーパー","g":"スパーク","c":"広島市","lat":34.366837,"lng":132.445441,"u":1,"ps":30,"pf":30},{"id":33,"n":"スパーク堺町店","a":"広島県広島市中区堺町1-6-30","k":"スーパー","g":"スパーク","c":"広島市","lat":34.394165,"lng":132.44801,"u":1,"ps":30,"pf":30},{"id":34,"n":"スパーク佐方店","a":"広島県広島市佐伯区三筋2-10-41","k":"スーパー","g":"スパーク","c":"広島市","lat":34.366854,"lng":132.345431,"u":1,"ps":30,"pf":30},{"id":35,"n":"スパーク鈴ケ峰店","a":"広島県広島市西区井口3丁目11-28","k":"スーパー","g":"スパーク","c":"広島市","lat":34.369648,"lng":132.374896,"u":1,"ps":30,"pf":30},{"id":36,"n":"スパーク中山店","a":"広島県広島市東区中山東2-3-15","k":"スーパー","g":"スパーク","c":"広島市","lat":34.409486,"lng":132.503751,"u":1,"ps":30,"pf":30},{"id":37,"n":"スパーク廿日市店","a":"広島県廿日市市廿日市1-6-33","k":"スーパー","g":"スパーク","c":"廿日市市","lat":34.354246,"lng":132.335635,"u":1,"ps":30,"pf":30},{"id":38,"n":"スパーク浜田店","a":"広島県安芸郡府中町浜田3-5-23","k":"スーパー","g":"スパーク","c":"安芸郡","lat":34.387282,"lng":132.510421,"u":1,"ps":30,"pf":30},{"id":39,"n":"スパーク御幸の杜店","a":"広島県広島市南区宇品御幸2-18-12","k":"スーパー","g":"スパーク","c":"広島市","lat":34.365022,"lng":132.461562,"u":1,"ps":30,"pf":30},{"id":40,"n":"ダイソー沼田店","a":"広島県広島市安佐南区伴東7丁目31番37号","k":"スーパー","g":"ダイソー","c":"広島市","lat":34.465682,"lng":132.417198,"u":1,"ps":30,"pf":30},{"id":41,"n":"ダイソー東尾道店","a":"広島県尾道市高須町4756-10","k":"スーパー","g":"ダイソー","c":"尾道市","lat":34.436079,"lng":133.236257,"u":1,"ps":30,"pf":30},{"id":42,"n":"ダイソー福山伊勢丘店","a":"広島県福山市伊勢丘3丁目3-1","k":"スーパー","g":"ダイソー","c":"福山市","lat":34.502959,"lng":133.422388,"u":1,"ps":30,"pf":30},{"id":43,"n":"ダイソー福山戸手店","a":"広島県福山市新市町戸手133-1番地外","k":"スーパー","g":"ダイソー","c":"福山市","lat":34.548344,"lng":133.284065,"u":1,"ps":30,"pf":30},{"id":44,"n":"ダイソー福山本店","a":"広島県福山市王子町一丁目2番30号","k":"スーパー","g":"ダイソー","c":"福山市","lat":34.487172,"lng":133.38213,"u":1,"ps":30,"pf":30},{"id":45,"n":"ダイソー福山御幸店","a":"広島県福山市御幸町上岩成字正戸464番8","k":"スーパー","g":"ダイソー","c":"福山市","lat":34.546853,"lng":133.348703,"u":1,"ps":30,"pf":30},{"id":46,"n":"ダイソー福山三吉店","a":"広島県福山市三吉町3丁目9-22","k":"スーパー","g":"ダイソー","c":"福山市","lat":34.493362,"lng":133.378971,"u":1,"ps":30,"pf":30},{"id":47,"n":"ダイソー府中高木店","a":"広島県府中市高木町414番地の1","k":"スーパー","g":"ダイソー","c":"府中市","lat":34.564127,"lng":133.242884,"u":1,"ps":30,"pf":30},{"id":48,"n":"ハローズ海田市駅前店","a":"広島県安芸郡海田町窪町1番23号","k":"スーパー","g":"ハローズ","c":"安芸郡","lat":34.371057,"lng":132.531543,"u":1,"ps":30,"pf":30},{"id":49,"n":"ハローズ観音新町店","a":"広島県広島市西区観音新町三丁目6番13号","k":"スーパー","g":"ハローズ","c":"広島市","lat":34.375079,"lng":132.424248,"u":1,"ps":30,"pf":30},{"id":50,"n":"ハローズ草津新町店","a":"広島県広島市西区草津新町一丁目20番7号","k":"スーパー","g":"ハローズ","c":"広島市","lat":34.37445,"lng":132.405035,"u":1,"ps":30,"pf":30},{"id":51,"n":"ハローズ熊野モール店","a":"広島県安芸郡熊野町出来庭二丁目12番1号","k":"スーパー","g":"ハローズ","c":"安芸郡","lat":34.332011,"lng":132.576003,"u":1,"ps":30,"pf":30},{"id":52,"n":"ハローズ高屋店","a":"広島県東広島市高屋町杵原1308番地","k":"スーパー","g":"ハローズ","c":"東広島市","lat":34.449905,"lng":132.786515,"u":1,"ps":30,"pf":30},{"id":53,"n":"ハローズ東広島店","a":"広島県東広島市西条西本町28番30号","k":"スーパー","g":"ハローズ","c":"東広島市","lat":34.427206,"lng":132.740066,"u":1,"ps":30,"pf":30},{"id":54,"n":"ハローズ宮内店","a":"広島県廿日市市宮内4452番地","k":"スーパー","g":"ハローズ","c":"廿日市市","lat":34.345368,"lng":132.303562,"u":1,"ps":30,"pf":30},{"id":55,"n":"ハローズ伊勢丘店","a":"広島県福山市伊勢丘3-3-1","k":"スーパー","g":"ハローズ","c":"福山市","lat":34.502959,"lng":133.422388,"u":1,"ps":30,"pf":30},{"id":56,"n":"ハローズ因島店","a":"広島県尾道市因島田熊町1160番地1","k":"スーパー","g":"ハローズ","c":"尾道市","lat":34.29598,"lng":133.164877,"u":1,"ps":30,"pf":30},{"id":57,"n":"ハローズ駅家モール店","a":"広島県福山市駅家町近田260","k":"スーパー","g":"ハローズ","c":"福山市","lat":34.542528,"lng":133.316412,"u":1,"ps":30,"pf":30},{"id":58,"n":"ハローズ尾道店","a":"広島県尾道市門田町7番4号","k":"スーパー","g":"ハローズ","c":"尾道市","lat":34.418287,"lng":133.185438,"u":1,"ps":30,"pf":30},{"id":59,"n":"ハローズ春日店","a":"広島県福山市春日町3-3-9","k":"スーパー","g":"ハローズ","c":"福山市","lat":34.510877,"lng":133.415324,"u":1,"ps":30,"pf":30},{"id":60,"n":"ハローズ神辺店","a":"広島県福山市神辺町川北1086-2","k":"スーパー","g":"ハローズ","c":"福山市","lat":34.54904,"lng":133.378107,"u":1,"ps":30,"pf":30},{"id":61,"n":"ハローズ神辺モール店","a":"広島県福山市神辺町川北1435番地","k":"スーパー","g":"ハローズ","c":"福山市","lat":34.542436,"lng":133.364649,"u":1,"ps":30,"pf":30},{"id":62,"n":"ハローズ新涯店","a":"広島県福山市新涯町3-20-3","k":"スーパー","g":"ハローズ","c":"福山市","lat":34.461594,"lng":133.391971,"u":1,"ps":30,"pf":30},{"id":63,"n":"ハローズ大門店","a":"広島県福山市大門町2-22-43","k":"スーパー","g":"ハローズ","c":"福山市","lat":34.494977,"lng":133.440962,"u":1,"ps":30,"pf":30},{"id":64,"n":"ハローズ高木店","a":"広島県府中市高木町414-1","k":"スーパー","g":"ハローズ","c":"府中市","lat":34.564127,"lng":133.242884,"u":1,"ps":30,"pf":30},{"id":65,"n":"ハローズ手城店","a":"広島県福山市手城町3-20-1","k":"スーパー","g":"ハローズ","c":"福山市","lat":34.484318,"lng":133.392646,"u":1,"ps":30,"pf":30},{"id":66,"n":"ハローズ戸手店","a":"広島県福山市新市町戸手93","k":"スーパー","g":"ハローズ","c":"福山市","lat":34.549321,"lng":133.283046,"u":1,"ps":30,"pf":30},{"id":67,"n":"ハローズ沼南店","a":"広島県福山市沼隈町草深1981-1","k":"スーパー","g":"ハローズ","c":"福山市","lat":34.388014,"lng":133.32351,"u":1,"ps":30,"pf":30},{"id":68,"n":"ハローズ東尾道店","a":"広島県尾道市高須町4779-9","k":"スーパー","g":"ハローズ","c":"尾道市","lat":34.433776,"lng":133.236762,"u":1,"ps":30,"pf":30},{"id":69,"n":"ハローズ東福山店","a":"広島県福山市引野町3-35-11","k":"スーパー","g":"ハローズ","c":"福山市","lat":34.489774,"lng":133.410804,"u":1,"ps":30,"pf":30},{"id":70,"n":"ハローズ引野店","a":"広島県福山市南蔵王町6-26-7","k":"スーパー","g":"ハローズ","c":"福山市","lat":34.499737,"lng":133.406944,"u":1,"ps":30,"pf":30},{"id":71,"n":"ハローズ府中店","a":"広島県府中市元町608-1","k":"スーパー","g":"ハローズ","c":"府中市","lat":34.577149,"lng":133.235747,"u":1,"ps":30,"pf":30},{"id":72,"n":"ハローズ緑町店","a":"広島県福山市緑町一番30号","k":"スーパー","g":"ハローズ","c":"福山市","lat":34.476018,"lng":133.371245,"u":1,"ps":30,"pf":30},{"id":73,"n":"ハローズ南駅家店","a":"広島県福山市駅家町万能倉1115-4","k":"スーパー","g":"ハローズ","c":"福山市","lat":34.544179,"lng":133.330443,"u":1,"ps":30,"pf":30},{"id":74,"n":"ハローズ南松永店","a":"広島県福山市松永町6-10-47","k":"スーパー","g":"ハローズ","c":"福山市","lat":34.44316,"lng":133.254342,"u":1,"ps":30,"pf":30},{"id":75,"n":"ハローズ水呑店","a":"広島県福山市水呑町三新田二丁目7番地","k":"スーパー","g":"ハローズ","c":"福山市","lat":34.447116,"lng":133.386945,"u":1,"ps":30,"pf":30},{"id":76,"n":"ハローズ三原店","a":"広島県三原市皆実二丁目2番38号","k":"スーパー","g":"ハローズ","c":"三原市","lat":34.393506,"lng":133.065281,"u":1,"ps":30,"pf":30},{"id":77,"n":"ハローズ御幸店","a":"広島県福山市御幸町上岩成正戸464-8","k":"スーパー","g":"ハローズ","c":"福山市","lat":34.546853,"lng":133.348703,"u":1,"ps":30,"pf":30},{"id":78,"n":"ハローズ向島店","a":"広島県尾道市向島町5533番地47","k":"スーパー","g":"ハローズ","c":"尾道市","lat":34.39666,"lng":133.198197,"u":1,"ps":30,"pf":30},{"id":79,"n":"ハローズ山手店","a":"広島県福山市山手町4-1-6","k":"スーパー","g":"ハローズ","c":"福山市","lat":34.492707,"lng":133.333566,"u":1,"ps":30,"pf":30},{"id":80,"n":"サンリブ五日市","a":"広島県広島市佐伯区八幡1-24-17","k":"スーパー","g":"サンリブ系","c":"広島市","lat":34.386896,"lng":132.358364,"u":1,"ps":30,"pf":30},{"id":81,"n":"サンリブ可部","a":"広島県広島市安佐北区可部5-11-17","k":"スーパー","g":"サンリブ系","c":"広島市","lat":34.520817,"lng":132.51096,"u":1,"ps":30,"pf":30},{"id":82,"n":"リブホール上平良店","a":"広島県廿日市市上平良字伴丈木172-3","k":"スーパー","g":"サンリブ系","c":"廿日市市","lat":34.354805,"lng":132.320005,"u":1,"ps":30,"pf":30},{"id":83,"n":"サンリブ府中","a":"広島県安芸郡府中町大須4-2-10","k":"スーパー","g":"サンリブ系","c":"安芸郡","lat":34.397924,"lng":132.500657,"u":1,"ps":30,"pf":30},{"id":84,"n":"リブホール船越店","a":"広島県広島市安芸区船越南2-4-11","k":"スーパー","g":"サンリブ系","c":"広島市","lat":34.373093,"lng":132.523426,"u":1,"ps":30,"pf":30},{"id":85,"n":"マルショク山本店","a":"広島県広島市安佐南区山本1-11-2","k":"スーパー","g":"サンリブ系","c":"広島市","lat":34.436982,"lng":132.453351,"u":1,"ps":30,"pf":30},{"id":86,"n":"プロマート五日市店","a":"広島県広島市佐伯区五日市駅前2丁目16-20","k":"スーパー","g":"業務用食品スーパー系","c":"広島市","lat":34.369339,"lng":132.36593,"u":1,"ps":30,"pf":30},{"id":87,"n":"プロマート宇品店","a":"広島県広島市南区宇品西2丁目7-26","k":"スーパー","g":"業務用食品スーパー系","c":"広島市","lat":34.365688,"lng":132.459661,"u":1,"ps":30,"pf":30},{"id":88,"n":"業務用食品スーパー海田店","a":"広島県安芸郡海田町月見町10-5","k":"スーパー","g":"業務用食品スーパー系","c":"安芸郡","lat":34.360155,"lng":132.537576,"u":1,"ps":30,"pf":30},{"id":89,"n":"プロマート八丁堀店","a":"広島県広島市中区鉄砲町2-8鯉城ガレ-シ1","k":"スーパー","g":"業務用食品スーパー系","c":"広島市","lat":34.396777,"lng":132.464808,"u":1,"ps":30,"pf":30},{"id":90,"n":"業務用食品ス-パー府中店","a":"広島県安芸郡府中町大須1丁目11-16","k":"スーパー","g":"業務用食品スーパー系","c":"安芸郡","lat":34.392553,"lng":132.501613,"u":1,"ps":30,"pf":30},{"id":91,"n":"オンリーワン旭ヶ丘店","a":"広島県福山市引野町南1-12-1-1","k":"スーパー","g":"オンリーワン","c":"福山市","lat":34.492018,"lng":133.422162,"u":1,"ps":30,"pf":30},{"id":92,"n":"オンリーワン浦崎店","a":"広島県尾道市浦崎町1885-1","k":"スーパー","g":"オンリーワン","c":"尾道市","lat":34.408769,"lng":133.278099,"u":1,"ps":30,"pf":30},{"id":93,"n":"オンリーワン駅家店","a":"広島県福山市駅家町倉光76-9","k":"スーパー","g":"オンリーワン","c":"福山市","lat":34.549355,"lng":133.326825,"u":1,"ps":30,"pf":30},{"id":94,"n":"オンリーワン沖野上店","a":"広島県福山市沖野上町5-18-29","k":"スーパー","g":"オンリーワン","c":"福山市","lat":34.470743,"lng":133.366741,"u":1,"ps":30,"pf":30},{"id":95,"n":"オンリーワン木之庄店","a":"広島県福山市木之庄町1-18-25","k":"スーパー","g":"オンリーワン","c":"福山市","lat":34.496214,"lng":133.353517,"u":1,"ps":30,"pf":30},{"id":96,"n":"オンリーワン瀬戸店","a":"広島県福山市瀬戸町山北461","k":"スーパー","g":"オンリーワン","c":"福山市","lat":34.471667,"lng":133.315021,"u":1,"ps":30,"pf":30},{"id":97,"n":"オンリーワン千田店","a":"広島県福山市千田町3-1-45","k":"スーパー","g":"オンリーワン","c":"福山市","lat":34.518574,"lng":133.365417,"u":1,"ps":30,"pf":30},{"id":98,"n":"オンリーワン高須店","a":"広島県尾道市高須町5163","k":"スーパー","g":"オンリーワン","c":"尾道市","lat":34.431912,"lng":133.227703,"u":1,"ps":30,"pf":30},{"id":99,"n":"オンリーワン宮浦店","a":"広島県三原市宮浦5丁目27-8","k":"スーパー","g":"オンリーワン","c":"三原市","lat":34.393903,"lng":133.058446,"u":1,"ps":30,"pf":30},{"id":100,"n":"オンリーワン向島店","a":"広島県尾道市向島町551","k":"スーパー","g":"オンリーワン","c":"尾道市","lat":34.399764,"lng":133.205142,"u":1,"ps":30,"pf":30},{"id":101,"n":"オンリーワン山手店","a":"広島県福山市山手町6丁目14-23","k":"スーパー","g":"オンリーワン","c":"福山市","lat":34.494683,"lng":133.336931,"u":1,"ps":30,"pf":30},{"id":102,"n":"フードオアシスみよし","a":"広島県三次市江田川之内町503-2","k":"スーパー","g":"その他スーパー","c":"三次市","lat":34.779441,"lng":132.909835,"u":1,"ps":30,"pf":30},{"id":103,"n":"生鮮市場ベジタ","a":"広島県三次市南畑敷町484","k":"スーパー","g":"その他スーパー","c":"三次市","lat":34.804987,"lng":132.876978,"u":1,"ps":30,"pf":30},{"id":104,"n":"みんなの産直スーパーyotte-ne","a":"広島県三次市三次町1535-1","k":"スーパー","g":"その他スーパー","c":"三次市","lat":34.812061,"lng":132.84742,"u":1,"ps":30,"pf":30},{"id":105,"n":"ピュアークック青葉台店","a":"広島県廿日市市宮島口上二丁目20番13号","k":"スーパー","g":"ピュアークック","c":"廿日市市","lat":34.319312,"lng":132.300129,"u":1,"ps":30,"pf":30},{"id":106,"n":"ピュアークックアジナモール店","a":"広島県廿日市市阿品台三丁目2番1号","k":"スーパー","g":"ピュアークック","c":"廿日市市","lat":34.328613,"lng":132.309989,"u":1,"ps":30,"pf":30},{"id":107,"n":"ピュアークック観音店","a":"広島県広島市西区南観音二丁目8番5号","k":"スーパー","g":"ピュアークック","c":"広島市","lat":34.383194,"lng":132.430322,"u":1,"ps":30,"pf":30},{"id":108,"n":"ピュアークック東雲店","a":"広島県広島市南区東雲三丁目5番30号","k":"スーパー","g":"ピュアークック","c":"広島市","lat":34.379347,"lng":132.491282,"u":1,"ps":30,"pf":30},{"id":109,"n":"ピュアークック中通店","a":"広島県呉市中通三丁目7番11号","k":"スーパー","g":"ピュアークック","c":"呉市","lat":34.245228,"lng":132.565638,"u":1,"ps":30,"pf":30},{"id":110,"n":"ピュアークック毘沙門台店","a":"広島県広島市安佐南区毘沙門台二丁目43番6号","k":"スーパー","g":"ピュアークック","c":"広島市","lat":34.477129,"lng":132.461723,"u":1,"ps":30,"pf":30},{"id":111,"n":"ピュアークック吉浦店","a":"広島県呉市吉浦中町一丁目1番7号","k":"スーパー","g":"ピュアークック","c":"呉市","lat":34.25772,"lng":132.527821,"u":1,"ps":30,"pf":30},{"id":112,"n":"ノムラストアー馬木店","a":"広島県広島市東区馬木5丁目1417-1","k":"スーパー","g":"ノムラストアー","c":"広島市","lat":34.437991,"lng":132.529162,"u":1,"ps":30,"pf":30},{"id":113,"n":"ノムラストアー可部店","a":"広島県広島市安佐北区可部東2丁目6-14","k":"スーパー","g":"ノムラストアー","c":"広島市","lat":34.508678,"lng":132.517197,"u":1,"ps":30,"pf":30},{"id":114,"n":"ノムラストアー熊野店","a":"広島県安芸郡熊野町萩原8丁目10-23","k":"スーパー","g":"ノムラストアー","c":"安芸郡","lat":34.347114,"lng":132.590828,"u":1,"ps":30,"pf":30},{"id":115,"n":"マックスバリュ段原店","a":"広島県広島市南区段原南1-3-52","k":"スーパー","g":"イオン系","c":"広島市","lat":34.385237,"lng":132.475357,"u":1,"ps":30,"pf":30},{"id":116,"n":"エキスプレス広島駅北口店","a":"広島県広島市東区若草町11-2","k":"スーパー","g":"イオン系","c":"広島市","lat":34.398684,"lng":132.478219,"u":1,"ps":30,"pf":30},{"id":117,"n":"フォレオ広島東店","a":"広島県広島市東区温品1-3-2","k":"スーパー","g":"イオン系","c":"広島市","lat":34.408726,"lng":132.503699,"u":1,"ps":30,"pf":30},{"id":118,"n":"エクスプレス草津南店","a":"広島県広島市西区草津南4-2-24","k":"スーパー","g":"イオン系","c":"広島市","lat":34.377171,"lng":132.397984,"u":1,"ps":30,"pf":30},{"id":119,"n":"エクスプレス庚午店","a":"広島県広島市西区庚午北1-25-20","k":"スーパー","g":"イオン系","c":"広島市","lat":34.388067,"lng":132.419586,"u":1,"ps":30,"pf":30},{"id":120,"n":"エキスプレス舟入南店","a":"広島県広島市中区舟入南3-7-5","k":"スーパー","g":"イオン系","c":"広島市","lat":34.37678,"lng":132.43737,"u":1,"ps":30,"pf":30},{"id":121,"n":"マックスバリュ可部西店","a":"広島県広島市安佐北区亀山9-13-14-14","k":"スーパー","g":"イオン系","c":"広島市","lat":34.534184,"lng":132.476934,"u":1,"ps":30,"pf":30},{"id":122,"n":"マックスバリュ高陽店","a":"広島県広島市安佐北区口田4-6-32","k":"スーパー","g":"イオン系","c":"広島市","lat":34.468287,"lng":132.505918,"u":1,"ps":30,"pf":30},{"id":123,"n":"マックスバリュ西風新都店","a":"広島県広島市安佐南区大塚西6-6-1","k":"スーパー","g":"イオン系","c":"広島市","lat":34.447981,"lng":132.38987,"u":1,"ps":30,"pf":30},{"id":124,"n":"マックスバリュ祇園店","a":"広島県広島市安佐南区祇園4-53-1","k":"スーパー","g":"イオン系","c":"広島市","lat":34.440137,"lng":132.456443,"u":1,"ps":30,"pf":30},{"id":125,"n":"マックスバリュ石内店","a":"広島県広島市佐伯区五日市町大字石内字福永6471","k":"スーパー","g":"イオン系","c":"広島市","lat":34.425647,"lng":132.381542,"u":1,"ps":30,"pf":30},{"id":126,"n":"エキスプレス藤垂園店","a":"広島県広島市佐伯区藤垂園1-22","k":"スーパー","g":"イオン系","c":"広島市","lat":34.367326,"lng":132.371711,"u":1,"ps":30,"pf":30},{"id":127,"n":"マックスバリュ高屋店","a":"広島県東広島市高屋町杵原1776","k":"スーパー","g":"イオン系","c":"東広島市","lat":34.453831,"lng":132.787257,"u":1,"ps":30,"pf":30},{"id":128,"n":"マックスバリュ西条西店","a":"広島県東広島市西条町寺家3791-1","k":"スーパー","g":"イオン系","c":"東広島市","lat":34.438883,"lng":132.720135,"u":1,"ps":30,"pf":30},{"id":129,"n":"マックスバリュ佐伯店","a":"広島県廿日市市友田563","k":"スーパー","g":"イオン系","c":"廿日市市","lat":34.358718,"lng":132.218219,"u":1,"ps":30,"pf":30},{"id":130,"n":"マックスバリュ広東店","a":"広島県呉市広白石2-12-35","k":"スーパー","g":"イオン系","c":"呉市","lat":34.22701,"lng":132.63837,"u":1,"ps":30,"pf":30},{"id":131,"n":"マックスバリュ本郷店","a":"広島県三原市下北方1-14-1","k":"スーパー","g":"イオン系","c":"三原市","lat":34.405228,"lng":132.973768,"u":1,"ps":30,"pf":30},{"id":132,"n":"マックスバリュ海田店","a":"広島県安芸郡海田町南大正町3-30","k":"スーパー","g":"イオン系","c":"安芸郡","lat":34.36725,"lng":132.53416,"u":1,"ps":30,"pf":30},{"id":133,"n":"マックスバリュ牛田店","a":"広島県広島市東区牛田旭2-7-5","k":"スーパー","g":"イオン系","c":"広島市","lat":34.412838,"lng":132.474067,"u":1,"ps":30,"pf":30},{"id":134,"n":"マックスバリュ楽々園店","a":"広島県広島市佐伯区楽々園4-14-1","k":"スーパー","g":"イオン系","c":"広島市","lat":34.362124,"lng":132.352449,"u":1,"ps":30,"pf":30},{"id":135,"n":"マックスバリュ江波店","a":"広島県広島市中区江波西1-24-50","k":"スーパー","g":"イオン系","c":"広島市","lat":34.372212,"lng":132.434421,"u":1,"ps":30,"pf":30},{"id":136,"n":"マックスバリュ高取店","a":"広島県広島市安佐南区高取北3-16-18","k":"スーパー","g":"イオン系","c":"広島市","lat":34.475272,"lng":132.436197,"u":1,"ps":30,"pf":30},{"id":137,"n":"ザ・ビッグ焼山店","a":"広島県呉市焼山北1-21-1","k":"スーパー","g":"イオン系","c":"呉市","lat":34.30061,"lng":132.558057,"u":1,"ps":30,"pf":30},{"id":138,"n":"ザ・ビッグ宮内店","a":"広島県廿日市市宮内字北山1268-1","k":"スーパー","g":"イオン系","c":"廿日市市","lat":34.345368,"lng":132.303562,"u":1,"ps":30,"pf":30},{"id":139,"n":"ザ・ビッグ戸坂店","a":"広島県広島市東区戸坂山崎町8-13","k":"スーパー","g":"イオン系","c":"広島市","lat":34.435796,"lng":132.485866,"u":1,"ps":30,"pf":30},{"id":140,"n":"ザ・ビッグ安古市店","a":"広島県広島市安佐南区大町東3-32-8","k":"スーパー","g":"イオン系","c":"広島市","lat":34.467279,"lng":132.461619,"u":1,"ps":30,"pf":30},{"id":141,"n":"ザ・ビッグ神辺店","a":"広島県福山市神辺町大字新湯野2-30-4","k":"スーパー","g":"イオン系","c":"福山市","lat":34.557629,"lng":133.389333,"u":1,"ps":30,"pf":30},{"id":142,"n":"ザ・ビッグ大門店","a":"広島県福山市大門町2-10-6","k":"スーパー","g":"イオン系","c":"福山市","lat":34.494523,"lng":133.438083,"u":1,"ps":30,"pf":30},{"id":143,"n":"広島銀行 大手町支店","a":"広島県広島市中区国泰寺町2-3-23","k":"銀行","g":"広島銀行","c":"広島市","lat":34.384261,"lng":132.454316,"u":1,"ps":30,"pf":30},{"id":144,"n":"広島銀行 銀山町支店","a":"広島県広島市中区銀山町3-1","k":"銀行","g":"広島銀行","c":"広島市","lat":34.392677,"lng":132.467778,"u":1,"ps":30,"pf":30},{"id":145,"n":"広島銀行 県庁支店","a":"広島県広島市中区基町10-52","k":"銀行","g":"広島銀行","c":"広島市","lat":34.396165,"lng":132.459637,"u":1,"ps":30,"pf":30},{"id":146,"n":"広島銀行 白島支店","a":"広島県広島市中区東白島町14-15","k":"銀行","g":"広島銀行","c":"広島市","lat":34.405143,"lng":132.464252,"u":1,"ps":30,"pf":30},{"id":147,"n":"広島銀行 八丁堀支店","a":"広島県広島市中区八丁堀16-11","k":"銀行","g":"広島銀行","c":"広島市","lat":34.394661,"lng":132.461763,"u":1,"ps":30,"pf":30},{"id":148,"n":"広島銀行 広島市役所支店","a":"広島県広島市中区国泰寺町1-6-34","k":"銀行","g":"広島銀行","c":"広島市","lat":34.385124,"lng":132.455133,"u":1,"ps":30,"pf":30},{"id":149,"n":"広島銀行 舟入支店","a":"広島県広島市中区舟入中町9-12","k":"銀行","g":"広島銀行","c":"広島市","lat":34.386436,"lng":132.443679,"u":1,"ps":30,"pf":30},{"id":150,"n":"広島銀行 本川支店","a":"広島県広島市中区十日市町1-3-34","k":"銀行","g":"広島銀行","c":"広島市","lat":34.397042,"lng":132.447332,"u":1,"ps":30,"pf":30},{"id":151,"n":"広島銀行 三川町支店","a":"広島県広島市中区三川町10-1","k":"銀行","g":"広島銀行","c":"広島市","lat":34.388946,"lng":132.461754,"u":1,"ps":30,"pf":30},{"id":152,"n":"広島銀行 吉島支店","a":"広島県広島市中区光南1-16-25","k":"銀行","g":"広島銀行","c":"広島市","lat":34.367628,"lng":132.446441,"u":1,"ps":30,"pf":30},{"id":153,"n":"広島銀行 曙支店","a":"広島県広島市東区曙1-8-10","k":"銀行","g":"広島銀行","c":"広島市","lat":34.395422,"lng":132.488282,"u":1,"ps":30,"pf":30},{"id":154,"n":"広島銀行 牛田支店","a":"広島県広島市東区牛田旭2-6-19","k":"銀行","g":"広島銀行","c":"広島市","lat":34.412464,"lng":132.472698,"u":1,"ps":30,"pf":30},{"id":155,"n":"広島銀行 広島駅北口支店","a":"広島県広島市東区若草町11-2","k":"銀行","g":"広島銀行","c":"広島市","lat":34.398684,"lng":132.478219,"u":1,"ps":30,"pf":30},{"id":156,"n":"広島銀行 福田支店","a":"広島県広島市東区福田1-741-1","k":"銀行","g":"広島銀行","c":"広島市","lat":34.451402,"lng":132.539522,"u":1,"ps":30,"pf":30},{"id":157,"n":"広島銀行 戸坂支店","a":"広島県広島市東区戸坂千足1-22-16","k":"銀行","g":"広島銀行","c":"広島市","lat":34.436925,"lng":132.485111,"u":1,"ps":30,"pf":30},{"id":158,"n":"広島銀行 宇品支店","a":"広島県広島市南区宇品御幸5-15-1","k":"銀行","g":"広島銀行","c":"広島市","lat":34.357354,"lng":132.463394,"u":1,"ps":30,"pf":30},{"id":159,"n":"広島銀行 大河支店","a":"広島県広島市南区旭2-17-1","k":"銀行","g":"広島銀行","c":"広島市","lat":34.373936,"lng":132.477733,"u":1,"ps":30,"pf":30},{"id":160,"n":"広島銀行 東雲支店","a":"広島県広島市南区東雲本町1-5-1","k":"銀行","g":"広島銀行","c":"広島市","lat":34.38318,"lng":132.484398,"u":1,"ps":30,"pf":30},{"id":161,"n":"広島銀行 仁保支店","a":"広島県広島市南区東本浦町26-10","k":"銀行","g":"広島銀行","c":"広島市","lat":34.373898,"lng":132.493222,"u":1,"ps":30,"pf":30},{"id":162,"n":"広島銀行 広島駅前支店","a":"広島県広島市南区松原町9-1","k":"銀行","g":"広島銀行","c":"広島市","lat":34.396426,"lng":132.473839,"u":1,"ps":30,"pf":30},{"id":163,"n":"広島銀行 広島東支店","a":"広島県広島市南区荒神町5-8","k":"銀行","g":"広島銀行","c":"広島市","lat":34.394189,"lng":132.476908,"u":1,"ps":30,"pf":30},{"id":164,"n":"広島銀行 皆実町支店","a":"広島県広島市南区皆実町5-13-12","k":"銀行","g":"広島銀行","c":"広島市","lat":34.373481,"lng":132.465079,"u":1,"ps":30,"pf":30},{"id":165,"n":"広島銀行 向洋支店","a":"広島県広島市南区青崎1-8-17","k":"銀行","g":"広島銀行","c":"広島市","lat":34.374645,"lng":132.506406,"u":1,"ps":30,"pf":30},{"id":166,"n":"広島銀行 ゆめタウン広島出張所","a":"広島県広島市南区皆実町2-8-17","k":"銀行","g":"広島銀行","c":"広島市","lat":34.376258,"lng":132.463711,"u":1,"ps":30,"pf":30},{"id":167,"n":"広島銀行 観音支店","a":"広島県広島市西区南観音6-15-5","k":"銀行","g":"広島銀行","c":"広島市","lat":34.379611,"lng":132.427243,"u":1,"ps":30,"pf":30},{"id":168,"n":"広島銀行 己斐支店","a":"広島県広島市西区己斐本町1-9-26","k":"銀行","g":"広島銀行","c":"広島市","lat":34.398482,"lng":132.429732,"u":1,"ps":30,"pf":30},{"id":169,"n":"広島銀行 庚午支店","a":"広島県広島市西区庚午中1-7-22","k":"銀行","g":"広島銀行","c":"広島市","lat":34.384797,"lng":132.416196,"u":1,"ps":30,"pf":30},{"id":170,"n":"広島銀行 広島西支店","a":"広島県広島市西区井口明神1-17-4","k":"銀行","g":"広島銀行","c":"広島市","lat":34.371672,"lng":132.392061,"u":1,"ps":30,"pf":30},{"id":171,"n":"広島銀行 平和大通り支店","a":"広島県広島市西区東観音町3-17","k":"銀行","g":"広島銀行","c":"広島市","lat":34.39282,"lng":132.439749,"u":1,"ps":30,"pf":30},{"id":172,"n":"広島銀行 横川支店","a":"広島県広島市西区横川町3-11-9","k":"銀行","g":"広島銀行","c":"広島市","lat":34.408843,"lng":132.451644,"u":1,"ps":30,"pf":30},{"id":173,"n":"広島銀行 可部支店","a":"広島県広島市安佐北区可部3-20-21","k":"銀行","g":"広島銀行","c":"広島市","lat":34.519589,"lng":132.511847,"u":1,"ps":30,"pf":30},{"id":174,"n":"広島銀行 高陽支店","a":"広島県広島市安佐北区亀崎1-2-20","k":"銀行","g":"広島銀行","c":"広島市","lat":34.481859,"lng":132.524082,"u":1,"ps":30,"pf":30},{"id":175,"n":"広島銀行 高陽南支店","a":"広島県広島市安佐北区口田4-4-11","k":"銀行","g":"広島銀行","c":"広島市","lat":34.467363,"lng":132.505382,"u":1,"ps":30,"pf":30},{"id":176,"n":"広島銀行 白木町出張所","a":"広島県広島市安佐北区白木町大字小越87-6","k":"銀行","g":"広島銀行","c":"広島市","lat":34.552668,"lng":132.661269,"u":1,"ps":30,"pf":30},{"id":177,"n":"広島銀行 祇園支店","a":"広島県広島市安佐南区西原5-19-10","k":"銀行","g":"広島銀行","c":"広島市","lat":34.438649,"lng":132.467021,"u":1,"ps":30,"pf":30},{"id":178,"n":"広島銀行 西風新都支店","a":"広島県広島市安佐南区伴南4-2-9","k":"銀行","g":"広島銀行","c":"広島市","lat":34.445633,"lng":132.380081,"u":1,"ps":30,"pf":30},{"id":179,"n":"広島銀行 中筋支店","a":"広島県広島市安佐南区中筋3-28-13","k":"銀行","g":"広島銀行","c":"広島市","lat":34.451725,"lng":132.477392,"u":1,"ps":30,"pf":30},{"id":180,"n":"広島銀行 古市支店","a":"広島県広島市安佐南区古市3-1-2","k":"銀行","g":"広島銀行","c":"広島市","lat":34.45548,"lng":132.471353,"u":1,"ps":30,"pf":30},{"id":181,"n":"広島銀行 緑井支店","a":"広島県広島市安佐南区緑井2-12-12","k":"銀行","g":"広島銀行","c":"広島市","lat":34.467262,"lng":132.470555,"u":1,"ps":30,"pf":30},{"id":182,"n":"広島銀行 安支店","a":"広島県広島市安佐南区上安2-4-37","k":"銀行","g":"広島銀行","c":"広島市","lat":34.472382,"lng":132.446259,"u":1,"ps":30,"pf":30},{"id":183,"n":"広島銀行 五日市支店","a":"広島県広島市佐伯区楽々園4-2-16","k":"銀行","g":"広島銀行","c":"広島市","lat":34.363646,"lng":132.351138,"u":1,"ps":30,"pf":30},{"id":184,"n":"広島銀行 五日市駅前支店","a":"広島県広島市佐伯区五日市駅前1-10-55","k":"銀行","g":"広島銀行","c":"広島市","lat":34.36758,"lng":132.368053,"u":1,"ps":30,"pf":30},{"id":185,"n":"広島銀行 五日市中央支店","a":"広島県広島市佐伯区千同1-30-2","k":"銀行","g":"広島銀行","c":"広島市","lat":34.376269,"lng":132.352888,"u":1,"ps":30,"pf":30},{"id":186,"n":"広島銀行 五日市八幡支店","a":"広島県広島市佐伯区八幡2-25-22","k":"銀行","g":"広島銀行","c":"広島市","lat":34.388641,"lng":132.355908,"u":1,"ps":30,"pf":30},{"id":187,"n":"広島銀行 廿日市支店","a":"広島県廿日市市新宮1-9-34","k":"銀行","g":"広島銀行","c":"廿日市市","lat":34.350054,"lng":132.330333,"u":1,"ps":30,"pf":30},{"id":188,"n":"広島銀行 宮内支店","a":"広島県廿日市市宮内1056-3","k":"銀行","g":"広島銀行","c":"廿日市市","lat":34.347836,"lng":132.309963,"u":1,"ps":30,"pf":30},{"id":189,"n":"広島銀行 宮島口支店","a":"広島県廿日市市宮島口1-5-3","k":"銀行","g":"広島銀行","c":"廿日市市","lat":34.311134,"lng":132.303097,"u":1,"ps":30,"pf":30},{"id":190,"n":"広島銀行 大竹支店","a":"広島県大竹市本町1-8-6","k":"銀行","g":"広島銀行","c":"大竹市","lat":34.214587,"lng":132.220329,"u":1,"ps":30,"pf":30},{"id":191,"n":"広島銀行 安芸府中支店","a":"広島県安芸郡府中町本町4-6-31","k":"銀行","g":"広島銀行","c":"安芸郡","lat":34.398657,"lng":132.504801,"u":1,"ps":30,"pf":30},{"id":192,"n":"広島銀行 海田支店","a":"広島県安芸郡海田町窪町5-8","k":"銀行","g":"広島銀行","c":"安芸郡","lat":34.370841,"lng":132.528707,"u":1,"ps":30,"pf":30},{"id":193,"n":"広島銀行 熊野支店","a":"広島県安芸郡熊野町出来庭9-9-3","k":"銀行","g":"広島銀行","c":"安芸郡","lat":34.332926,"lng":132.569337,"u":1,"ps":30,"pf":30},{"id":194,"n":"広島銀行 矢野支店","a":"広島県広島市安芸区矢野東5-1-10","k":"銀行","g":"広島銀行","c":"広島市","lat":34.35503,"lng":132.535587,"u":1,"ps":30,"pf":30},{"id":195,"n":"広島銀行 音戸支店","a":"広島県呉市音戸町鰯浜1-2-8","k":"銀行","g":"広島銀行","c":"呉市","lat":34.194796,"lng":132.536642,"u":1,"ps":30,"pf":30},{"id":196,"n":"広島銀行 川原石支店","a":"広島県呉市三条1-5-5","k":"銀行","g":"広島銀行","c":"呉市","lat":34.244303,"lng":132.550388,"u":1,"ps":30,"pf":30},{"id":197,"n":"広島銀行 呉支店","a":"広島県呉市本通3-5-4","k":"銀行","g":"広島銀行","c":"呉市","lat":34.244806,"lng":132.566968,"u":1,"ps":30,"pf":30},{"id":198,"n":"広島銀行 呉駅前出張所","a":"広島県呉市中央1-2-3","k":"銀行","g":"広島銀行","c":"呉市","lat":34.245967,"lng":132.559123,"u":1,"ps":30,"pf":30},{"id":199,"n":"広島銀行 呉市役所出張所","a":"広島県呉市中央4-1-6","k":"銀行","g":"広島銀行","c":"呉市","lat":34.248791,"lng":132.565237,"u":1,"ps":30,"pf":30},{"id":200,"n":"広島銀行 広支店","a":"広島県呉市広中町15-18","k":"銀行","g":"広島銀行","c":"呉市","lat":34.230901,"lng":132.622374,"u":1,"ps":30,"pf":30},{"id":201,"n":"広島銀行 焼山支店","a":"広島県呉市焼山中央1-12-12","k":"銀行","g":"広島銀行","c":"呉市","lat":34.295022,"lng":132.555749,"u":1,"ps":30,"pf":30},{"id":202,"n":"広島銀行 安芸津支店","a":"広島県東広島市安芸津町三津4255-1","k":"銀行","g":"広島銀行","c":"東広島市","lat":34.319522,"lng":132.816977,"u":1,"ps":30,"pf":30},{"id":203,"n":"広島銀行 黒瀬支店","a":"広島県東広島市黒瀬町川角579-1","k":"銀行","g":"広島銀行","c":"東広島市","lat":34.32329,"lng":132.67176,"u":1,"ps":30,"pf":30},{"id":204,"n":"広島銀行 西条支店","a":"広島県東広島市西条昭和町2-7","k":"銀行","g":"広島銀行","c":"東広島市","lat":34.425914,"lng":132.742163,"u":1,"ps":30,"pf":30},{"id":205,"n":"広島銀行 西条南支店","a":"広島県東広島市西条下見6-10-17","k":"銀行","g":"広島銀行","c":"東広島市","lat":34.407664,"lng":132.715182,"u":1,"ps":30,"pf":30},{"id":206,"n":"広島銀行 高屋支店","a":"広島県東広島市高屋町大字中島435-2","k":"銀行","g":"広島銀行","c":"東広島市","lat":34.434072,"lng":132.794299,"u":1,"ps":30,"pf":30},{"id":207,"n":"広島銀行 八本松支店","a":"広島県東広島市八本松東3-3-16","k":"銀行","g":"広島銀行","c":"東広島市","lat":34.446288,"lng":132.711971,"u":1,"ps":30,"pf":30},{"id":208,"n":"広島銀行 吉田支店","a":"広島県安芸高田市吉田町吉田789-1","k":"銀行","g":"広島銀行","c":"安芸高田市","lat":34.667146,"lng":132.704977,"u":1,"ps":30,"pf":30},{"id":209,"n":"広島銀行 江田島支店","a":"広島県江田島市江田島町中央1-3-1","k":"銀行","g":"広島銀行","c":"江田島市","lat":34.245503,"lng":132.47726,"u":1,"ps":30,"pf":30},{"id":210,"n":"広島銀行 大柿支店","a":"広島県江田島市大柿町大原495-5","k":"銀行","g":"広島銀行","c":"江田島市","lat":34.174435,"lng":132.460514,"u":1,"ps":30,"pf":30},{"id":211,"n":"広島銀行 十日市支店","a":"広島県三次市十日市中2-13-26","k":"銀行","g":"広島銀行","c":"三次市","lat":34.806598,"lng":132.850051,"u":1,"ps":30,"pf":30},{"id":212,"n":"広島銀行 千代田支店","a":"広島県山県郡北広島町有田1549-3","k":"銀行","g":"広島銀行","c":"山県郡","lat":34.67488,"lng":132.534637,"u":1,"ps":30,"pf":30},{"id":213,"n":"広島銀行 庄原支店","a":"広島県庄原市中本町2-1-7","k":"銀行","g":"広島銀行","c":"庄原市","lat":34.859726,"lng":133.014458,"u":1,"ps":30,"pf":30},{"id":214,"n":"広島銀行 東城支店","a":"広島県庄原市東城町東城360","k":"銀行","g":"広島銀行","c":"庄原市","lat":34.898035,"lng":133.27197,"u":1,"ps":30,"pf":30},{"id":215,"n":"広島銀行 竹原支店","a":"広島県竹原市中央5-5-5","k":"銀行","g":"広島銀行","c":"竹原市","lat":34.341037,"lng":132.90629,"u":1,"ps":30,"pf":30},{"id":216,"n":"広島銀行 府中支店","a":"広島県府中市府川町335-1","k":"銀行","g":"広島銀行","c":"府中市","lat":34.568036,"lng":133.23783,"u":1,"ps":30,"pf":30},{"id":217,"n":"広島銀行 甲山支店","a":"広島県世羅郡世羅町大字西上原111-1","k":"銀行","g":"広島銀行","c":"世羅郡","lat":34.585457,"lng":133.058377,"u":1,"ps":30,"pf":30},{"id":218,"n":"広島銀行 木江支店","a":"広島県豊田郡大崎上島町木江甲254-2","k":"銀行","g":"広島銀行","c":"豊田郡","lat":34.234098,"lng":132.915041,"u":1,"ps":30,"pf":30},{"id":219,"n":"広島銀行 因島支店","a":"広島県尾道市因島土生町2017-3","k":"銀行","g":"広島銀行","c":"尾道市","lat":34.284207,"lng":133.180045,"u":1,"ps":30,"pf":30},{"id":220,"n":"広島銀行 尾道支店","a":"広島県尾道市土堂2-7-11","k":"銀行","g":"広島銀行","c":"尾道市","lat":34.407672,"lng":133.200949,"u":1,"ps":30,"pf":30},{"id":221,"n":"広島銀行 尾道栗原支店","a":"広島県尾道市栗原町5930-1","k":"銀行","g":"広島銀行","c":"尾道市","lat":34.426349,"lng":133.188223,"u":1,"ps":30,"pf":30},{"id":222,"n":"広島銀行 瀬戸田支店","a":"広島県尾道市瀬戸田町瀬戸田524-1","k":"銀行","g":"広島銀行","c":"尾道市","lat":34.305052,"lng":133.089111,"u":1,"ps":30,"pf":30},{"id":223,"n":"広島銀行 東尾道支店","a":"広島県尾道市高須町1336-6","k":"銀行","g":"広島銀行","c":"尾道市","lat":34.428692,"lng":133.22873,"u":1,"ps":30,"pf":30},{"id":224,"n":"広島銀行 御調支店","a":"広島県尾道市御調町大田10-1","k":"銀行","g":"広島銀行","c":"尾道市","lat":34.511879,"lng":133.145223,"u":1,"ps":30,"pf":30},{"id":225,"n":"広島銀行 向島支店","a":"広島県尾道市向島町544-1","k":"銀行","g":"広島銀行","c":"尾道市","lat":34.398944,"lng":133.205319,"u":1,"ps":30,"pf":30},{"id":226,"n":"広島銀行 本郷支店","a":"広島県三原市本郷南6-14-2","k":"銀行","g":"広島銀行","c":"三原市","lat":34.408707,"lng":132.984369,"u":1,"ps":30,"pf":30},{"id":227,"n":"広島銀行 三原支店","a":"広島県三原市城町1-25-1","k":"銀行","g":"広島銀行","c":"三原市","lat":34.399386,"lng":133.085357,"u":1,"ps":30,"pf":30},{"id":228,"n":"広島銀行 三原西支店","a":"広島県三原市皆実1-26-22","k":"銀行","g":"広島銀行","c":"三原市","lat":34.394873,"lng":133.065849,"u":1,"ps":30,"pf":30},{"id":229,"n":"広島銀行 駅家支店","a":"広島県福山市駅家町大字近田369","k":"銀行","g":"広島銀行","c":"福山市","lat":34.541593,"lng":133.31591,"u":1,"ps":30,"pf":30},{"id":230,"n":"広島銀行 神辺支店","a":"広島県福山市神辺町大字川南241-4","k":"銀行","g":"広島銀行","c":"福山市","lat":34.541257,"lng":133.379223,"u":1,"ps":30,"pf":30},{"id":231,"n":"広島銀行 新市支店","a":"広島県福山市新市町大字新市757-3","k":"銀行","g":"広島銀行","c":"福山市","lat":34.554878,"lng":133.274365,"u":1,"ps":30,"pf":30},{"id":232,"n":"広島銀行 千年支店","a":"広島県福山市沼隈町大字草深1861-2","k":"銀行","g":"広島銀行","c":"福山市","lat":34.3908,"lng":133.319278,"u":1,"ps":30,"pf":30},{"id":233,"n":"広島銀行 鞆支店","a":"広島県福山市鞆町鞆150-34","k":"銀行","g":"広島銀行","c":"福山市","lat":34.387104,"lng":133.38327,"u":1,"ps":30,"pf":30},{"id":234,"n":"広島銀行 福山営業本部","a":"広島県福山市霞町1-1-1","k":"銀行","g":"広島銀行","c":"福山市","lat":34.485237,"lng":133.364647,"u":1,"ps":30,"pf":30},{"id":235,"n":"広島銀行 福山胡町支店","a":"広島県福山市胡町2-3","k":"銀行","g":"広島銀行","c":"福山市","lat":34.492455,"lng":133.367287,"u":1,"ps":30,"pf":30},{"id":236,"n":"広島銀行 福山春日支店","a":"広島県福山市青葉台1-2-19","k":"銀行","g":"広島銀行","c":"福山市","lat":34.511774,"lng":133.428377,"u":1,"ps":30,"pf":30},{"id":237,"n":"広島銀行 福山北支店","a":"広島県福山市神辺町大字新十九1-12","k":"銀行","g":"広島銀行","c":"福山市","lat":34.546584,"lng":133.35904,"u":1,"ps":30,"pf":30},{"id":238,"n":"広島銀行 福山蔵王支店","a":"広島県福山市南蔵王町5-17-41","k":"銀行","g":"広島銀行","c":"福山市","lat":34.505385,"lng":133.40246,"u":1,"ps":30,"pf":30},{"id":239,"n":"広島銀行 福山瀬戸支店","a":"広島県福山市瀬戸町大字山北358-1","k":"銀行","g":"広島銀行","c":"福山市","lat":34.471813,"lng":133.316167,"u":1,"ps":30,"pf":30},{"id":240,"n":"広島銀行 福山手城支店","a":"広島県福山市東手城町1-1-6","k":"銀行","g":"広島銀行","c":"福山市","lat":34.489623,"lng":133.400678,"u":1,"ps":30,"pf":30},{"id":241,"n":"広島銀行 福山野上支店","a":"広島県福山市野上町3-2-10","k":"銀行","g":"広島銀行","c":"福山市","lat":34.47634,"lng":133.366635,"u":1,"ps":30,"pf":30},{"id":242,"n":"広島銀行 福山南支店","a":"広島県福山市川口町4-13-18","k":"銀行","g":"広島銀行","c":"福山市","lat":34.463777,"lng":133.385326,"u":1,"ps":30,"pf":30},{"id":243,"n":"広島銀行 松永支店","a":"広島県福山市今津町2-1-14","k":"銀行","g":"広島銀行","c":"福山市","lat":34.450956,"lng":133.256091,"u":1,"ps":30,"pf":30},{"id":244,"n":"広島銀行 松永南支店","a":"広島県福山市松永町5-11-19","k":"銀行","g":"広島銀行","c":"福山市","lat":34.444256,"lng":133.260062,"u":1,"ps":30,"pf":30},{"id":245,"n":"もみじ銀行 紙屋町支店","a":"広島県広島市中区紙屋町1-2-22","k":"銀行","g":"もみじ銀行","c":"広島市","lat":34.394921,"lng":132.458106,"u":1,"ps":30,"pf":30},{"id":246,"n":"もみじ銀行 堺町支店","a":"広島県広島市中区榎町10-20","k":"銀行","g":"もみじ銀行","c":"広島市","lat":34.39563,"lng":132.446071,"u":1,"ps":30,"pf":30},{"id":247,"n":"もみじ銀行 鷹野橋支店","a":"広島県広島市中区千田町1-8-8","k":"銀行","g":"もみじ銀行","c":"広島市","lat":34.379342,"lng":132.452429,"u":1,"ps":30,"pf":30},{"id":248,"n":"もみじ銀行 舟入支店","a":"広島県広島市中区舟入川口町13-23","k":"銀行","g":"もみじ銀行","c":"広島市","lat":34.391285,"lng":132.444831,"u":1,"ps":30,"pf":30},{"id":249,"n":"もみじ銀行 本店営業部","a":"広島県広島市中区胡町1-24","k":"銀行","g":"もみじ銀行","c":"広島市","lat":34.392979,"lng":132.466447,"u":1,"ps":30,"pf":30},{"id":250,"n":"もみじ銀行 吉島支店","a":"広島県広島市中区吉島東1-19-15","k":"銀行","g":"もみじ銀行","c":"広島市","lat":34.373474,"lng":132.44863,"u":1,"ps":30,"pf":30},{"id":251,"n":"もみじ銀行 牛田支店","a":"広島県広島市東区牛田本町4-1-5","k":"銀行","g":"もみじ銀行","c":"広島市","lat":34.399793,"lng":132.506588,"u":1,"ps":30,"pf":30},{"id":252,"n":"もみじ銀行 広島光町支店","a":"広島県広島市東区光町1-12-20","k":"銀行","g":"もみじ銀行","c":"広島市","lat":34.39937,"lng":132.478251,"u":1,"ps":30,"pf":30},{"id":253,"n":"もみじ銀行 戸坂支店","a":"広島県広島市東区戸坂中町6-46","k":"銀行","g":"もみじ銀行","c":"広島市","lat":34.390575,"lng":132.458186,"u":1,"ps":30,"pf":30},{"id":254,"n":"もみじ銀行 宇品支店","a":"広島県広島市南区宇品御幸5-1-1","k":"銀行","g":"もみじ銀行","c":"広島市","lat":34.358027,"lng":132.46356,"u":1,"ps":30,"pf":30},{"id":255,"n":"もみじ銀行 大州支店","a":"広島県広島市南区大州2-13-10","k":"銀行","g":"もみじ銀行","c":"広島市","lat":34.38877,"lng":132.489525,"u":1,"ps":30,"pf":30},{"id":256,"n":"もみじ銀行 東雲支店","a":"広島県広島市南区段原山崎3-2-30","k":"銀行","g":"もみじ銀行","c":"広島市","lat":34.388537,"lng":132.477981,"u":1,"ps":30,"pf":30},{"id":257,"n":"もみじ銀行 広島駅前支店","a":"広島県広島市南区松原町5-1","k":"銀行","g":"もみじ銀行","c":"広島市","lat":34.395798,"lng":132.475143,"u":1,"ps":30,"pf":30},{"id":258,"n":"もみじ銀行 翠町支店","a":"広島県広島市南区宇品御幸1-9-26-101","k":"銀行","g":"もみじ銀行","c":"広島市","lat":34.368489,"lng":132.46398,"u":1,"ps":30,"pf":30},{"id":259,"n":"もみじ銀行 向洋支店","a":"広島県広島市南区青崎1-6-11","k":"銀行","g":"もみじ銀行","c":"広島市","lat":34.372567,"lng":132.475512,"u":1,"ps":30,"pf":30},{"id":260,"n":"もみじ銀行 観音支店","a":"広島県広島市西区南観音2-7-26","k":"銀行","g":"もみじ銀行","c":"広島市","lat":34.378011,"lng":132.493347,"u":1,"ps":30,"pf":30},{"id":261,"n":"もみじ銀行 商工センター支店","a":"広島県広島市西区井口明神1-16-3","k":"銀行","g":"もみじ銀行","c":"広島市","lat":34.385289,"lng":132.455306,"u":1,"ps":30,"pf":30},{"id":262,"n":"もみじ銀行 天満支店","a":"広島県広島市西区観音町8-13","k":"銀行","g":"もみじ銀行","c":"広島市","lat":34.399194,"lng":132.479899,"u":1,"ps":30,"pf":30},{"id":263,"n":"もみじ銀行 古江支店","a":"広島県広島市西区古江新町4-1","k":"銀行","g":"もみじ銀行","c":"広島市","lat":34.385647,"lng":132.410957,"u":1,"ps":30,"pf":30},{"id":264,"n":"もみじ銀行 三篠支店","a":"広島県広島市西区三篠町1-12-19","k":"銀行","g":"もみじ銀行","c":"広島市","lat":34.411018,"lng":132.451854,"u":1,"ps":30,"pf":30},{"id":265,"n":"もみじ銀行 可部支店","a":"広島県広島市安佐北区可部5-1-6","k":"銀行","g":"もみじ銀行","c":"広島市","lat":34.520676,"lng":132.511784,"u":1,"ps":30,"pf":30},{"id":266,"n":"もみじ銀行 高陽支店","a":"広島県広島市安佐北区口田4-6-15","k":"銀行","g":"もみじ銀行","c":"広島市","lat":34.516418,"lng":132.510109,"u":1,"ps":30,"pf":30},{"id":267,"n":"もみじ銀行 祇園支店","a":"広島県広島市安佐南区祇園1-36-7","k":"銀行","g":"もみじ銀行","c":"広島市","lat":34.433582,"lng":132.460385,"u":1,"ps":30,"pf":30},{"id":268,"n":"もみじ銀行 沼田支店","a":"広島県広島市安佐南区伴東7-34-10","k":"銀行","g":"もみじ銀行","c":"広島市","lat":34.465546,"lng":132.416232,"u":1,"ps":30,"pf":30},{"id":269,"n":"もみじ銀行 古市支店","a":"広島県広島市安佐南区古市1-30-21","k":"銀行","g":"もみじ銀行","c":"広島市","lat":34.451448,"lng":132.470338,"u":1,"ps":30,"pf":30},{"id":270,"n":"もみじ銀行 緑井支店","a":"広島県広島市安佐南区緑井2-8-2","k":"銀行","g":"もみじ銀行","c":"広島市","lat":34.46801,"lng":132.472395,"u":1,"ps":30,"pf":30},{"id":271,"n":"もみじ銀行 安支店","a":"広島県広島市安佐南区相田2-9-21","k":"銀行","g":"もみじ銀行","c":"広島市","lat":34.469645,"lng":132.446674,"u":1,"ps":30,"pf":30},{"id":272,"n":"もみじ銀行 五日市支店","a":"広島県広島市佐伯区楽々園4-14-24","k":"銀行","g":"もみじ銀行","c":"広島市","lat":34.36162,"lng":132.353201,"u":1,"ps":30,"pf":30},{"id":273,"n":"もみじ銀行 五日市駅前支店","a":"広島県広島市佐伯区五日市駅前1-11-1","k":"銀行","g":"もみじ銀行","c":"広島市","lat":34.367498,"lng":132.367378,"u":1,"ps":30,"pf":30},{"id":274,"n":"もみじ銀行 五日市北支店","a":"広島県広島市佐伯区八幡2-23-6","k":"銀行","g":"もみじ銀行","c":"広島市","lat":34.364573,"lng":132.357581,"u":1,"ps":30,"pf":30},{"id":275,"n":"もみじ銀行 瀬野川支店","a":"広島県広島市安芸区中野東1-11-38","k":"銀行","g":"もみじ銀行","c":"広島市","lat":34.387458,"lng":132.561997,"u":1,"ps":30,"pf":30},{"id":276,"n":"もみじ銀行 矢野支店","a":"広島県広島市安芸区矢野西5-1-27","k":"銀行","g":"もみじ銀行","c":"広島市","lat":34.316142,"lng":132.552807,"u":1,"ps":30,"pf":30},{"id":277,"n":"もみじ銀行 廿日市支店","a":"広島県廿日市市可愛12-14","k":"銀行","g":"もみじ銀行","c":"廿日市市","lat":34.351841,"lng":132.333448,"u":1,"ps":30,"pf":30},{"id":278,"n":"もみじ銀行 宮内支店","a":"広島県廿日市市大字宮内1070-1","k":"銀行","g":"もみじ銀行","c":"廿日市市","lat":34.348339,"lng":132.310977,"u":1,"ps":30,"pf":30},{"id":279,"n":"もみじ銀行 大竹支店","a":"広島県大竹市新町1-6-7","k":"銀行","g":"もみじ銀行","c":"大竹市","lat":34.215663,"lng":132.221591,"u":1,"ps":30,"pf":30},{"id":280,"n":"もみじ銀行 安芸府中支店","a":"広島県安芸郡府中町本町4-7-18","k":"銀行","g":"もみじ銀行","c":"安芸郡","lat":34.397871,"lng":132.505207,"u":1,"ps":30,"pf":30},{"id":281,"n":"もみじ銀行 海田支店","a":"広島県安芸郡海田町窪町4-45","k":"銀行","g":"もみじ銀行","c":"安芸郡","lat":34.371237,"lng":132.528676,"u":1,"ps":30,"pf":30},{"id":282,"n":"もみじ銀行 熊野支店","a":"広島県安芸郡熊野町出来庭6-2-13","k":"銀行","g":"もみじ銀行","c":"安芸郡","lat":34.337246,"lng":132.577217,"u":1,"ps":30,"pf":30},{"id":283,"n":"もみじ銀行 坂支店","a":"広島県安芸郡坂町北新地2-3-45","k":"銀行","g":"もみじ銀行","c":"安芸郡","lat":34.350379,"lng":132.517112,"u":1,"ps":30,"pf":30},{"id":284,"n":"もみじ銀行 音戸支店","a":"広島県呉市音戸町鰯浜1-5-1","k":"銀行","g":"もみじ銀行","c":"呉市","lat":34.194102,"lng":132.535972,"u":1,"ps":30,"pf":30},{"id":285,"n":"もみじ銀行 呉営業部","a":"広島県呉市本通2-3-7","k":"銀行","g":"もみじ銀行","c":"呉市","lat":34.243869,"lng":132.565929,"u":1,"ps":30,"pf":30},{"id":286,"n":"もみじ銀行 呉中央支店","a":"広島県呉市中央1-4-24","k":"銀行","g":"もみじ銀行","c":"呉市","lat":34.245527,"lng":132.559715,"u":1,"ps":30,"pf":30},{"id":287,"n":"もみじ銀行 広支店","a":"広島県呉市広古新開2-2-22","k":"銀行","g":"もみじ銀行","c":"呉市","lat":34.23412,"lng":132.616259,"u":1,"ps":30,"pf":30},{"id":288,"n":"もみじ銀行 焼山支店","a":"広島県呉市焼山北1-6-2","k":"銀行","g":"もみじ銀行","c":"呉市","lat":34.248948,"lng":132.565527,"u":1,"ps":30,"pf":30},{"id":289,"n":"もみじ銀行 黒瀬支店","a":"広島県東広島市黒瀬町楢原669-1","k":"銀行","g":"もみじ銀行","c":"東広島市","lat":34.323667,"lng":132.672125,"u":1,"ps":30,"pf":30},{"id":290,"n":"もみじ銀行 西条支店","a":"広島県東広島市西条岡町10-18","k":"銀行","g":"もみじ銀行","c":"東広島市","lat":34.427049,"lng":132.741029,"u":1,"ps":30,"pf":30},{"id":291,"n":"もみじ銀行 高屋支店","a":"広島県東広島市高屋町杵原1338-4","k":"銀行","g":"もみじ銀行","c":"東広島市","lat":34.457897,"lng":132.773554,"u":1,"ps":30,"pf":30},{"id":292,"n":"もみじ銀行 八本松支店","a":"広島県東広島市八本松町飯田156-11","k":"銀行","g":"もみじ銀行","c":"東広島市","lat":34.426414,"lng":132.743312,"u":1,"ps":30,"pf":30},{"id":293,"n":"もみじ銀行 吉田支店","a":"広島県安芸高田市吉田町吉田752-1","k":"銀行","g":"もみじ銀行","c":"安芸高田市","lat":34.402942,"lng":132.599964,"u":1,"ps":30,"pf":30},{"id":294,"n":"もみじ銀行 江田島支店","a":"広島県江田島市江田島町中央4-17-21","k":"銀行","g":"もみじ銀行","c":"江田島市","lat":34.882341,"lng":133.01949,"u":1,"ps":30,"pf":30},{"id":295,"n":"もみじ銀行 三次支店","a":"広島県三次市十日市中3-1-5","k":"銀行","g":"もみじ銀行","c":"三次市","lat":34.80559,"lng":132.85188,"u":1,"ps":30,"pf":30},{"id":296,"n":"もみじ銀行 千代田支店","a":"広島県山県郡北広島町有田647-3","k":"銀行","g":"もみじ銀行","c":"山県郡","lat":34.667481,"lng":132.528893,"u":1,"ps":30,"pf":30},{"id":297,"n":"もみじ銀行 竹原支店","a":"広島県竹原市中央3-6-1","k":"銀行","g":"もみじ銀行","c":"竹原市","lat":34.34222,"lng":132.908578,"u":1,"ps":30,"pf":30},{"id":298,"n":"もみじ銀行 三原支店","a":"広島県三原市港町1-12-12","k":"銀行","g":"もみじ銀行","c":"三原市","lat":34.399418,"lng":133.078566,"u":1,"ps":30,"pf":30},{"id":299,"n":"もみじ銀行 因島田熊支店","a":"広島県尾道市因島田熊町1140-1","k":"銀行","g":"もみじ銀行","c":"尾道市","lat":34.321804,"lng":133.165029,"u":1,"ps":30,"pf":30},{"id":300,"n":"もみじ銀行 尾道支店","a":"広島県尾道市土堂1-3-27","k":"銀行","g":"もみじ銀行","c":"尾道市","lat":34.4089,"lng":133.204914,"u":1,"ps":30,"pf":30},{"id":301,"n":"もみじ銀行 府中支店","a":"広島県府中市中須町字国府1651","k":"銀行","g":"もみじ銀行","c":"府中市","lat":34.558379,"lng":133.259404,"u":1,"ps":30,"pf":30},{"id":302,"n":"もみじ銀行 甲山支店","a":"広島県世羅郡世羅町大字西上原497-2","k":"銀行","g":"もみじ銀行","c":"世羅郡","lat":34.400582,"lng":132.859995,"u":1,"ps":30,"pf":30},{"id":303,"n":"もみじ銀行 大崎支店","a":"広島県豊田郡大崎上島町中野5577-3","k":"銀行","g":"もみじ銀行","c":"豊田郡","lat":34.243682,"lng":132.885583,"u":1,"ps":30,"pf":30},{"id":304,"n":"もみじ銀行 駅家支店","a":"広島県福山市駅家町大字万能倉1279-1","k":"銀行","g":"もみじ銀行","c":"福山市","lat":34.546523,"lng":133.328466,"u":1,"ps":30,"pf":30},{"id":305,"n":"もみじ銀行 神辺支店","a":"広島県福山市神辺町川北1444-3","k":"銀行","g":"もみじ銀行","c":"福山市","lat":34.542436,"lng":133.364649,"u":1,"ps":30,"pf":30},{"id":306,"n":"もみじ銀行 蔵王支店","a":"広島県福山市南蔵王町5-18-35","k":"銀行","g":"もみじ銀行","c":"福山市","lat":34.505141,"lng":133.399758,"u":1,"ps":30,"pf":30},{"id":307,"n":"もみじ銀行 福山支店","a":"広島県福山市延広町1-28","k":"銀行","g":"もみじ銀行","c":"福山市","lat":34.486199,"lng":133.364272,"u":1,"ps":30,"pf":30},{"id":308,"n":"もみじ銀行 福山東支店","a":"広島県福山市明神町1-9-35","k":"銀行","g":"もみじ銀行","c":"福山市","lat":34.488908,"lng":133.392025,"u":1,"ps":30,"pf":30},{"id":309,"n":"もみじ銀行 福山南支店","a":"広島県福山市沖野上町5-13-4","k":"銀行","g":"もみじ銀行","c":"福山市","lat":34.473357,"lng":133.367557,"u":1,"ps":30,"pf":30},{"id":310,"n":"もみじ銀行 松永支店","a":"広島県福山市今津町2-2-21","k":"銀行","g":"もみじ銀行","c":"福山市","lat":34.451592,"lng":133.255774,"u":1,"ps":30,"pf":30},{"id":311,"n":"広島信用金庫 江波支店","a":"広島県広島市中区舟入南6丁目1-6","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.374981,"lng":132.436886,"u":1,"ps":30,"pf":30},{"id":312,"n":"広島信用金庫 紙屋町支店","a":"広島県広島市中区紙屋町2丁目2-25","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.394191,"lng":132.456156,"u":1,"ps":30,"pf":30},{"id":313,"n":"広島信用金庫 鷹野橋千田支店","a":"広島県広島市中区千田町1丁目8-1","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.382409,"lng":132.454287,"u":1,"ps":30,"pf":30},{"id":314,"n":"広島信用金庫 土橋支店","a":"広島県広島市中区土橋町3-15","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.3939,"lng":132.446649,"u":1,"ps":30,"pf":30},{"id":315,"n":"広島信用金庫 白島支店","a":"広島県広島市中区東白島町16-12","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.404724,"lng":132.465758,"u":1,"ps":30,"pf":30},{"id":316,"n":"広島信用金庫 八丁堀支店","a":"広島県広島市中区立町1-24","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.372763,"lng":132.44652,"u":1,"ps":30,"pf":30},{"id":317,"n":"広島信用金庫 フジグラン広島出張所","a":"広島県広島市中区宝町2-1","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.385963,"lng":132.464325,"u":1,"ps":30,"pf":30},{"id":318,"n":"広島信用金庫 舟入支店","a":"広島県広島市中区舟入本町13-1","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.385173,"lng":132.442083,"u":1,"ps":30,"pf":30},{"id":319,"n":"広島信用金庫 本店営業部","a":"広島県広島市中区富士見町3-15","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.387495,"lng":132.461999,"u":1,"ps":30,"pf":30},{"id":320,"n":"広島信用金庫 吉島支店","a":"広島県広島市中区光南1丁目16-30","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.368091,"lng":132.446653,"u":1,"ps":30,"pf":30},{"id":321,"n":"広島信用金庫 愛宕支店","a":"広島県広島市東区愛宕町4-7","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.397044,"lng":132.48317,"u":1,"ps":30,"pf":30},{"id":322,"n":"広島信用金庫 牛田支店","a":"広島県広島市東区牛田中1丁目1-21","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.411991,"lng":132.471879,"u":1,"ps":30,"pf":30},{"id":323,"n":"広島信用金庫 温品支店","a":"広島県広島市東区温品7丁目11-31","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.413987,"lng":132.508936,"u":1,"ps":30,"pf":30},{"id":324,"n":"広島信用金庫 戸坂支店","a":"広島県広島市東区戸坂出江2丁目9-4","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.433161,"lng":132.48783,"u":1,"ps":30,"pf":30},{"id":325,"n":"広島信用金庫 旭町支店","a":"広島県広島市南区旭2丁目17-8","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.373368,"lng":132.477971,"u":1,"ps":30,"pf":30},{"id":326,"n":"広島信用金庫 宇品支店","a":"広島県広島市南区宇品海岸2丁目15-3","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.35478,"lng":132.462702,"u":1,"ps":30,"pf":30},{"id":327,"n":"広島信用金庫 大州支店","a":"広島県広島市南区大州2丁目18-13","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.389506,"lng":132.487249,"u":1,"ps":30,"pf":30},{"id":328,"n":"広島信用金庫 東雲中央支店","a":"広島県広島市南区東雲本町2丁目9-1","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.382326,"lng":132.487885,"u":1,"ps":30,"pf":30},{"id":329,"n":"広島信用金庫 段原支店","a":"広島県広島市南区段原3丁目20-22","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.387259,"lng":132.477463,"u":1,"ps":30,"pf":30},{"id":330,"n":"広島信用金庫 仁保支店","a":"広島県広島市南区仁保新町2丁目6-32","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.375523,"lng":132.492919,"u":1,"ps":30,"pf":30},{"id":331,"n":"広島信用金庫 広島駅前支店","a":"広島県広島市南区猿猴橋町4-1","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.394811,"lng":132.475872,"u":1,"ps":30,"pf":30},{"id":332,"n":"広島信用金庫 皆実支店","a":"広島県広島市南区皆実町6丁目15-8","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.371657,"lng":132.464167,"u":1,"ps":30,"pf":30},{"id":333,"n":"広島信用金庫 向洋支店","a":"広島県広島市南区青崎2丁目6-10","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.373886,"lng":132.5078,"u":1,"ps":30,"pf":30},{"id":334,"n":"広島信用金庫 観音支店","a":"広島県広島市西区観音本町1丁目14-22","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.388204,"lng":132.436272,"u":1,"ps":30,"pf":30},{"id":335,"n":"広島信用金庫 草津支店","a":"広島県広島市西区草津南1丁目2-21","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.378275,"lng":132.402397,"u":1,"ps":30,"pf":30},{"id":336,"n":"広島信用金庫 己斐支店","a":"広島県広島市西区己斐本町3丁目12-25<仮店舗>","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.393312,"lng":132.424596,"u":1,"ps":30,"pf":30},{"id":337,"n":"広島信用金庫 庚午支店","a":"広島県広島市西区庚午中2丁目12-1","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.385474,"lng":132.416233,"u":1,"ps":30,"pf":30},{"id":338,"n":"広島信用金庫 西部支店","a":"広島県広島市西区草津新町2丁目26-2","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.373576,"lng":132.394759,"u":1,"ps":30,"pf":30},{"id":339,"n":"広島信用金庫 中広支店","a":"広島県広島市西区中広町1丁目4-1","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.402223,"lng":132.441311,"u":1,"ps":30,"pf":30},{"id":340,"n":"広島信用金庫 三篠支店","a":"広島県広島市西区三篠北町18-1","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.41788,"lng":132.455866,"u":1,"ps":30,"pf":30},{"id":341,"n":"広島信用金庫 横川支店","a":"広島県広島市西区横川町3丁目5-16","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.409548,"lng":132.451524,"u":1,"ps":30,"pf":30},{"id":342,"n":"広島信用金庫 可部支店","a":"広島県広島市安佐北区可部2丁目7-27","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.515909,"lng":132.510193,"u":1,"ps":30,"pf":30},{"id":343,"n":"広島信用金庫 可部北支店","a":"広島県広島市安佐北区可部6丁目1-24","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.522821,"lng":132.507294,"u":1,"ps":30,"pf":30},{"id":344,"n":"広島信用金庫 高陽支店","a":"広島県広島市安佐北区口田3丁目1-35","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.466396,"lng":132.505828,"u":1,"ps":30,"pf":30},{"id":345,"n":"広島信用金庫 高陽ニュータウン出張所","a":"広島県広島市安佐北区亀崎1丁目1-6","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.481383,"lng":132.523247,"u":1,"ps":30,"pf":30},{"id":346,"n":"広島信用金庫 川内支店","a":"広島県広島市安佐南区川内1丁目7-16","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.459985,"lng":132.483961,"u":1,"ps":30,"pf":30},{"id":347,"n":"広島信用金庫 祇園支店","a":"広島県広島市安佐南区西原5丁目20-9","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.43782,"lng":132.466615,"u":1,"ps":30,"pf":30},{"id":348,"n":"広島信用金庫 西風新都支店","a":"広島県広島市安佐南区伴南1丁目5-30-1","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.448424,"lng":132.380728,"u":1,"ps":30,"pf":30},{"id":349,"n":"広島信用金庫 中筋出張所","a":"広島県広島市安佐南区中筋3丁目26-18","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.453077,"lng":132.47774,"u":1,"ps":30,"pf":30},{"id":350,"n":"広島信用金庫 長束支店","a":"広島県広島市安佐南区長束5丁目32-4","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.429172,"lng":132.456053,"u":1,"ps":30,"pf":30},{"id":351,"n":"広島信用金庫 沼田支店","a":"広島県広島市安佐南区伴東4丁目18-19","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.464132,"lng":132.411477,"u":1,"ps":30,"pf":30},{"id":352,"n":"広島信用金庫 古市支店","a":"広島県広島市安佐南区古市2丁目35-4","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.456296,"lng":132.472708,"u":1,"ps":30,"pf":30},{"id":353,"n":"広島信用金庫 緑井支店","a":"広島県広島市安佐南区緑井3丁目12-10","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.467621,"lng":132.469868,"u":1,"ps":30,"pf":30},{"id":354,"n":"広島信用金庫 八木支店","a":"広島県広島市安佐南区八木2丁目12-10","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.4805,"lng":132.494889,"u":1,"ps":30,"pf":30},{"id":355,"n":"広島信用金庫 安支店","a":"広島県広島市安佐南区上安2丁目13-26","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.47398,"lng":132.443392,"u":1,"ps":30,"pf":30},{"id":356,"n":"広島信用金庫 山本出張所","a":"広島県広島市安佐南区山本3丁目10-25","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.437873,"lng":132.454624,"u":1,"ps":30,"pf":30},{"id":357,"n":"広島信用金庫 五日市支店","a":"広島県広島市佐伯区海老園2丁目4-13","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.36509,"lng":132.360526,"u":1,"ps":30,"pf":30},{"id":358,"n":"広島信用金庫 五日市駅前出張所","a":"広島県広島市佐伯区五日市駅前2丁目18-9","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.369058,"lng":132.366652,"u":1,"ps":30,"pf":30},{"id":359,"n":"広島信用金庫 五日市中央支店","a":"広島県広島市佐伯区五日市中央7丁目11-5","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.384431,"lng":132.356076,"u":1,"ps":30,"pf":30},{"id":360,"n":"広島信用金庫 五日市西支店","a":"広島県広島市佐伯区五日市中央3丁目16-17","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.367968,"lng":132.350282,"u":1,"ps":30,"pf":30},{"id":361,"n":"広島信用金庫 安芸中野支店","a":"広島県広島市安芸区中野2丁目17-12","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.391249,"lng":132.562541,"u":1,"ps":30,"pf":30},{"id":362,"n":"広島信用金庫 矢野支店","a":"広島県広島市安芸区矢野西1丁目1-18","k":"銀行","g":"広島信用金庫","c":"広島市","lat":34.354389,"lng":132.534376,"u":1,"ps":30,"pf":30},{"id":363,"n":"広島信用金庫 青葉台支店","a":"広島県廿日市市福面2丁目7-1","k":"銀行","g":"広島信用金庫","c":"廿日市市","lat":34.319589,"lng":132.299994,"u":1,"ps":30,"pf":30},{"id":364,"n":"広島信用金庫 廿日市支店","a":"広島県廿日市市廿日市1丁目8-2","k":"銀行","g":"広島信用金庫","c":"廿日市市","lat":34.353614,"lng":132.33617,"u":1,"ps":30,"pf":30},{"id":365,"n":"広島信用金庫 廿日市中央支店","a":"広島県廿日市市下平良1丁目3-36","k":"銀行","g":"広島信用金庫","c":"廿日市市","lat":34.34969,"lng":132.332027,"u":1,"ps":30,"pf":30},{"id":366,"n":"広島信用金庫 宮内支店","a":"広島県廿日市市宮内4丁目10-8","k":"銀行","g":"広島信用金庫","c":"廿日市市","lat":34.348861,"lng":132.312858,"u":1,"ps":30,"pf":30},{"id":367,"n":"広島信用金庫 宮島支店","a":"広島県廿日市市宮島町465-1","k":"銀行","g":"広島信用金庫","c":"廿日市市","lat":34.29797,"lng":132.321195,"u":1,"ps":30,"pf":30},{"id":368,"n":"広島信用金庫 宮島口支店","a":"広島県廿日市市宮島口1丁目2-5","k":"銀行","g":"広島信用金庫","c":"廿日市市","lat":34.310281,"lng":132.302055,"u":1,"ps":30,"pf":30},{"id":369,"n":"広島信用金庫 大竹支店","a":"広島県大竹市新町1丁目5-5","k":"銀行","g":"広島信用金庫","c":"大竹市","lat":34.215276,"lng":132.220963,"u":1,"ps":30,"pf":30},{"id":370,"n":"広島信用金庫 玖波支店","a":"広島県大竹市新町1丁目5-5(大竹支店内)","k":"銀行","g":"広島信用金庫","c":"大竹市","lat":34.215265,"lng":132.220971,"u":1,"ps":30,"pf":30},{"id":371,"n":"広島信用金庫 安芸府中支店","a":"広島県安芸郡府中町大須1丁目19-16","k":"銀行","g":"広島信用金庫","c":"安芸郡","lat":34.392009,"lng":132.499212,"u":1,"ps":30,"pf":30},{"id":372,"n":"広島信用金庫 安芸府中中央支店","a":"広島県安芸郡府中町浜田2丁目1-45","k":"銀行","g":"広島信用金庫","c":"安芸郡","lat":34.387779,"lng":132.509257,"u":1,"ps":30,"pf":30},{"id":373,"n":"広島信用金庫 海田支店","a":"広島県安芸郡海田町堀川町3-6","k":"銀行","g":"広島信用金庫","c":"安芸郡","lat":34.368479,"lng":132.531798,"u":1,"ps":30,"pf":30},{"id":374,"n":"広島信用金庫 海田東出張所","a":"広島県安芸郡海田町西浜3-31-101","k":"銀行","g":"広島信用金庫","c":"安芸郡","lat":34.370518,"lng":132.544008,"u":1,"ps":30,"pf":30},{"id":375,"n":"広島信用金庫 呉支店","a":"広島県呉市中通2丁目4-7","k":"銀行","g":"広島信用金庫","c":"呉市","lat":34.245378,"lng":132.563546,"u":1,"ps":30,"pf":30},{"id":376,"n":"広島信用金庫 西条支店","a":"広島県東広島市西条昭和町3-23","k":"銀行","g":"広島信用金庫","c":"東広島市","lat":34.424796,"lng":132.741548,"u":1,"ps":30,"pf":30},{"id":377,"n":"広島信用金庫 高屋支店","a":"広島県東広島市高屋町杵原1340-2","k":"銀行","g":"広島信用金庫","c":"東広島市","lat":34.448867,"lng":132.788252,"u":1,"ps":30,"pf":30},{"id":378,"n":"広島信用金庫 八本松支店","a":"広島県東広島市八本松町飯田186-7","k":"銀行","g":"広島信用金庫","c":"東広島市","lat":34.444872,"lng":132.689742,"u":1,"ps":30,"pf":30},{"id":379,"n":"広島信用金庫 フジグラン東広島出張所","a":"広島県東広島市西条町御薗宇4405","k":"銀行","g":"広島信用金庫","c":"東広島市","lat":34.407046,"lng":132.749977,"u":1,"ps":30,"pf":30},{"id":380,"n":"広島信用金庫 福山支店","a":"広島県福山市光南町2丁目4-15","k":"銀行","g":"広島信用金庫","c":"福山市","lat":34.478123,"lng":133.366658,"u":1,"ps":30,"pf":30},{"id":381,"n":"広島信用金庫 福山春日支店","a":"広島県福山市春日町1丁目1-1","k":"銀行","g":"広島信用金庫","c":"福山市","lat":34.505534,"lng":133.40382,"u":1,"ps":30,"pf":30},{"id":382,"n":"中国銀行 広島支店","a":"広島県広島市中区八丁堀15-4","k":"銀行","g":"中国銀行","c":"広島市","lat":34.394239,"lng":132.463366,"u":1,"ps":30,"pf":30},{"id":383,"n":"中国銀行 広島西支店","a":"広島県広島市中区舟入中町2-30","k":"銀行","g":"中国銀行","c":"広島市","lat":34.387854,"lng":132.444452,"u":1,"ps":30,"pf":30},{"id":384,"n":"中国銀行 広島東支店","a":"広島県広島市南区南蟹屋1-5-2","k":"銀行","g":"中国銀行","c":"広島市","lat":34.390515,"lng":132.482829,"u":1,"ps":30,"pf":30},{"id":385,"n":"中国銀行 福山胡町支店","a":"広島県福山市胡町2-22","k":"銀行","g":"中国銀行","c":"福山市","lat":34.492322,"lng":133.367589,"u":1,"ps":30,"pf":30},{"id":386,"n":"中国銀行 鞆支店","a":"広島県福山市鞆町鞆136-2","k":"銀行","g":"中国銀行","c":"福山市","lat":34.387704,"lng":133.3829,"u":1,"ps":30,"pf":30},{"id":387,"n":"中国銀行 松永支店","a":"広島県福山市松永町5-8-5","k":"銀行","g":"中国銀行","c":"福山市","lat":34.446433,"lng":133.259271,"u":1,"ps":30,"pf":30},{"id":388,"n":"中国銀行 福山春日支店","a":"広島県福山市春日町5-3-26","k":"銀行","g":"中国銀行","c":"福山市","lat":34.506745,"lng":133.408487,"u":1,"ps":30,"pf":30},{"id":389,"n":"中国銀行 千年支店","a":"広島県福山市沼隈町草深1865-3","k":"銀行","g":"中国銀行","c":"福山市","lat":34.390885,"lng":133.318635,"u":1,"ps":30,"pf":30},{"id":390,"n":"中国銀行 尾道支店","a":"広島県尾道市東御所町2-9","k":"銀行","g":"中国銀行","c":"尾道市","lat":34.404917,"lng":133.194578,"u":1,"ps":30,"pf":30},{"id":391,"n":"中国銀行 三原支店","a":"広島県三原市港町1-11-7","k":"銀行","g":"中国銀行","c":"三原市","lat":34.399339,"lng":133.079509,"u":1,"ps":30,"pf":30},{"id":392,"n":"中国銀行 竹原支店","a":"広島県竹原市中央5-6-37","k":"銀行","g":"中国銀行","c":"竹原市","lat":34.340799,"lng":132.905822,"u":1,"ps":30,"pf":30},{"id":393,"n":"中国銀行 呉支店","a":"広島県呉市本通3-6-1","k":"銀行","g":"中国銀行","c":"呉市","lat":34.244085,"lng":132.566205,"u":1,"ps":30,"pf":30},{"id":394,"n":"中国銀行 神辺支店","a":"広島県福山市神辺町川南3241","k":"銀行","g":"中国銀行","c":"福山市","lat":34.537855,"lng":133.379699,"u":1,"ps":30,"pf":30},{"id":395,"n":"中国銀行 駅家支店","a":"広島県福山市駅家町万能倉1282-3","k":"銀行","g":"中国銀行","c":"福山市","lat":34.547338,"lng":133.328806,"u":1,"ps":30,"pf":30},{"id":396,"n":"中国銀行 新市支店","a":"広島県福山市新市町新市593-7","k":"銀行","g":"中国銀行","c":"福山市","lat":34.554618,"lng":133.27088,"u":1,"ps":30,"pf":30},{"id":397,"n":"中国銀行 府中支店","a":"広島県府中市府川町1-3","k":"銀行","g":"中国銀行","c":"府中市","lat":34.572022,"lng":133.23662,"u":1,"ps":30,"pf":30},{"id":398,"n":"中国銀行 三次支店","a":"広島県三次市十日市中2-7-22","k":"銀行","g":"中国銀行","c":"三次市","lat":34.80545,"lng":132.853401,"u":1,"ps":30,"pf":30},{"id":399,"n":"中国銀行 東城支店","a":"広島県庄原市東城町川東1340-1","k":"銀行","g":"中国銀行","c":"庄原市","lat":34.896783,"lng":133.275557,"u":1,"ps":30,"pf":30},{"id":400,"n":"中国銀行 福山東支店","a":"広島県福山市引野町5-18-26","k":"銀行","g":"中国銀行","c":"福山市","lat":34.492853,"lng":133.406624,"u":1,"ps":30,"pf":30},{"id":401,"n":"中国銀行 福山支店","a":"広島県福山市紅葉町1-1","k":"銀行","g":"中国銀行","c":"福山市","lat":34.485053,"lng":133.363814,"u":1,"ps":30,"pf":30},{"id":402,"n":"中国銀行 福山南支店","a":"広島県福山市川口町4丁目21-43","k":"銀行","g":"中国銀行","c":"福山市","lat":34.464428,"lng":133.386106,"u":1,"ps":30,"pf":30},{"id":403,"n":"中国銀行 三原西支店","a":"広島県三原市皆実1丁目25-14","k":"銀行","g":"中国銀行","c":"三原市","lat":34.394042,"lng":133.067252,"u":1,"ps":30,"pf":30},{"id":404,"n":"中国銀行 福山西支店","a":"広島県福山市三之丸町10-18","k":"銀行","g":"中国銀行","c":"福山市","lat":34.488049,"lng":133.358744,"u":1,"ps":30,"pf":30},{"id":405,"n":"中国銀行 東尾道支店","a":"広島県尾道市高須町5753","k":"銀行","g":"中国銀行","c":"尾道市","lat":34.42928,"lng":133.233689,"u":1,"ps":30,"pf":30}];
+
+/* ===== 保存層：アーティファクト内では window.storage、単独ホスト時は localStorage ===== */
+const store = {
+  async get(k){
+    try{
+      if(window.storage){ const r = await window.storage.get(k); return r ? JSON.parse(r.value) : null; }
+      const v = localStorage.getItem(k); return v ? JSON.parse(v) : null;
+    }catch(e){ return null; }
+  },
+  async set(k,v){
+    try{
+      if(window.storage) return await window.storage.set(k, JSON.stringify(v));
+      localStorage.setItem(k, JSON.stringify(v));
+    }catch(e){ toast('保存できませんでした'); }
+  }
+};
+
+let visits = [];      // {id, date:'YYYY-MM-DD', p:'s'|'f', before, after}
+let cfg = { safety:0.8, rateS:1.0, rateF:0.6, min:7, max:90, soon:7, radius:300,
+            alertScope:'due', alarmSec:30, volume:0.5 };
+let pos = null, watchId = null, alerted = {}, map = null, markers = null;
+let ui = { tab:'list', q:'', sort:'days', kubun:'all', city:'all', status:'all' };
+
+const todayStr = () => new Date().toISOString().slice(0,10);
+const dayDiff = (a,b) => Math.round((new Date(b) - new Date(a)) / 86400000);
+
+/* ===== 補充周期の計算 ===== */
+function compute(place){
+  const mine = visits.filter(v => v.id === place.id).sort((a,b)=> a.date < b.date ? -1 : 1);
+  const out = {};
+  for(const [key,prod,stock,def] of [['s','s',place.ps,cfg.rateS],['f','f',place.pf,cfg.rateF]]){
+    const vs = mine.filter(v => v.p === prod);
+    let used = 0, days = 0;
+    for(let i=1;i<vs.length;i++){
+      const d = dayDiff(vs[i-1].date, vs[i].date);
+      if(d > 0){ used += (vs[i-1].after - vs[i].before); days += d; }
+    }
+    const rate = (days > 0 && used > 0) ? used / days : def;
+    const cycle = Math.min(cfg.max, Math.max(cfg.min, Math.round(stock * cfg.safety / rate)));
+    out[key] = { rate, cycle, last: vs.length ? vs[vs.length-1] : null, stock };
+  }
+  const last = mine.length ? mine[mine.length-1].date : null;
+  const cycle = Math.min(out.s.cycle, out.f.cycle);
+  const next = last ? new Date(new Date(last).getTime() + cycle*86400000).toISOString().slice(0,10) : null;
+  const left = next ? dayDiff(todayStr(), next) : null;
+  const status = left === null ? 'none' : left <= 0 ? 'due' : left <= cfg.soon ? 'soon' : 'ok';
+  return { ...out, last, cycle, next, left, status };
+}
+const STATUS = {
+  due:{label:'要補充', color:'var(--due)'}, soon:{label:'間もなく', color:'var(--soon)'},
+  ok:{label:'まだ余裕', color:'var(--ok)'}, none:{label:'未記録', color:'#8898A8'}
+};
+
+/* ===== 距離 ===== */
+function distance(a,b,c,d){
+  const R=6371000, r=Math.PI/180;
+  const dLat=(c-a)*r, dLng=(d-b)*r;
+  const x = Math.sin(dLat/2)**2 + Math.cos(a*r)*Math.cos(c*r)*Math.sin(dLng/2)**2;
+  return 2*R*Math.asin(Math.sqrt(x));
+}
+const fmtDist = m => m == null ? '' : m < 1000 ? Math.round(m/10)*10 + ' m' : (m/1000).toFixed(m < 10000 ? 1 : 0) + ' km';
+
+/* ===== 一覧の組み立て ===== */
+function rows(){
+  const q = ui.q.trim();
+  let list = PLACES.map(p => {
+    const c = compute(p);
+    const d = pos ? distance(pos.lat, pos.lng, p.lat, p.lng) : null;
+    return { p, c, d };
+  });
+  if(ui.kubun !== 'all') list = list.filter(r => r.p.k === ui.kubun);
+  if(ui.city !== 'all')  list = list.filter(r => r.p.c === ui.city);
+  if(ui.status !== 'all') list = list.filter(r => ui.status === 'todo'
+      ? (r.c.status === 'due' || r.c.status === 'soon') : r.c.status === ui.status);
+  if(q) list = list.filter(r => r.p.n.includes(q) || r.p.a.includes(q));
+
+  const by = {
+    days: (a,b) => (a.c.left ?? 9e3) - (b.c.left ?? 9e3),
+    dist: (a,b) => (a.d ?? 9e9) - (b.d ?? 9e9),
+    name: (a,b) => a.p.n.localeCompare(b.p.n, 'ja')
+  }[ui.sort];
+  return list.sort(by);
+}
+
+/* ===== 描画 ===== */
+function render(){
+  const list = rows();
+  document.getElementById('count').textContent = list.length + ' / ' + PLACES.length + ' 件';
+  const box = document.getElementById('list');
+
+  if(!list.length){
+    box.innerHTML = '<div class="empty">条件に合う設置先がありません。<br>絞り込みを変えてみてください。</div>';
+  } else {
+    box.innerHTML = list.slice(0, 200).map(({p,c,d}) => {
+      const st = STATUS[c.status];
+      const meter = (k, label, color) => {
+        const o = c[k];
+        const remain = c.last ? Math.max(0, Math.round(o.stock - o.rate * dayDiff(c.last, todayStr()))) : o.stock;
+        return `<div class="meter">
+          <div class="meter-top"><em style="color:${color}">${label}</em><i>残 ${remain}枚</i></div>
+          <div class="bar"><div style="width:${Math.max(3, Math.round(100*remain/o.stock))}%;background:${color}"></div></div>
+        </div>`;
+      };
+      return `<article class="card">
+        <div class="edge" style="background:${st.color}"></div>
+        <div class="card-body">
+          <div class="card-top">
+            <div style="flex:1;min-width:0">
+              <div class="card-name">${p.n}</div>
+              <div class="card-sub">${p.c}・${p.g}${d != null ? `<span class="dist-pill">${fmtDist(d)}</span>` : ''}</div>
+            </div>
+            <div class="days" style="color:${st.color}">
+              ${c.left === null ? '<b>—</b><span>未記録</span>'
+                : `<b>${c.left > 0 ? c.left : Math.abs(c.left)}</b><span>${c.left > 0 ? '日後' : c.left === 0 ? '今日' : '日超過'}</span>`}
+            </div>
+          </div>
+          <div class="meters">
+            ${meter('s','生命共済','var(--seimei)')}
+            ${meter('f','火災共済','var(--kasai)')}
+          </div>
+          <div class="card-actions">
+            <button class="btn btn-fill" onclick="openSheet(${p.id})">補充を記録</button>
+            <button class="btn btn-line" onclick="navTo(${p.lat},${p.lng})">ナビ</button>
+          </div>
+        </div>
+      </article>`;
+    }).join('');
+  }
+  if(mapMode) drawMarkers();
+  renderRadar();
+}
+
+function renderFilters(){
+  const cities = [...new Set(PLACES.map(p => p.c))].sort((a,b)=>a.localeCompare(b,'ja'));
+  const f = document.getElementById('filters');
+  const chip = (label, group, val) =>
+    `<button class="chip" aria-pressed="${ui[group]===val}" onclick="setFilter('${group}','${val}')">${label}</button>`;
+  f.innerHTML =
+    chip('すべて','status','all') + chip('要補充+間もなく','status','todo') + chip('要補充のみ','status','due') +
+    chip('スーパー','kubun','スーパー') + chip('銀行','kubun','銀行') +
+    `<select class="chip" style="padding-right:24px" onchange="setFilter('city',this.value)">
+      <option value="all">市区町村</option>
+      ${cities.map(c => `<option value="${c}" ${ui.city===c?'selected':''}>${c}</option>`).join('')}
+    </select>`;
+}
+function setFilter(g,v){
+  ui[g] = (ui[g] === v && g !== 'city') ? 'all' : v;
+  renderFilters(); render();
+}
+
+/* ===== 巡回レーダー ===== */
+function renderRadar(){
+  const r = document.getElementById('radar');
+  r.classList.toggle('on', !!watchId);
+  const lb = document.getElementById('locate');
+  if(lb) lb.classList.toggle('on', !!pos);
+  if(!watchId) return;
+  document.getElementById('radar-acc').textContent = pos ? '誤差 ±' + Math.round(pos.acc) + 'm' : '測位中…';
+  const near = rows().filter(x => x.d != null && (x.c.status === 'due' || x.c.status === 'soon'))
+                     .sort((a,b) => a.d - b.d).slice(0,3);
+  document.getElementById('radar-list').innerHTML = near.length
+    ? near.map(({p,c,d}) => `<div class="radar-row">
+        <span class="radar-dist">${fmtDist(d)}</span>
+        <span class="radar-name">${p.n}</span>
+        <span class="radar-tag" style="background:${STATUS[c.status].color}">${STATUS[c.status].label}</span>
+      </div>`).join('')
+    : '<div class="radar-empty">補充が必要な設置先はまだありません。</div>';
+}
+
+/* ===== 記録シート ===== */
+let sheetId = null;
+function openSheet(id){
+  sheetId = id;
+  const p = PLACES.find(x => x.id === id), c = compute(p);
+  const est = k => c.last ? Math.max(0, Math.round(c[k].stock - c[k].rate * dayDiff(c.last, todayStr()))) : '';
+  document.getElementById('sheet').innerHTML = `
+    <h2>${p.n}</h2>
+    <div class="addr">${p.a}</div>
+    <div class="note">
+      前回補充 <b>${c.last ?? 'なし'}</b>${c.last ? `（<b>${dayDiff(c.last, todayStr())}</b>日前）` : ''}<br>
+      実測消化 生命 <b>${c.s.rate.toFixed(2)}</b> 枚/日 ・ 火災 <b>${c.f.rate.toFixed(2)}</b> 枚/日
+    </div>
+    <div class="field">
+      <label>補充前の残数<span class="hint">棚に残っていた枚数</span></label>
+      <div class="row2">
+        ${num('bs','生命共済', est('s'))}
+        ${num('bf','火災共済', est('f'))}
+      </div>
+    </div>
+    <div class="field">
+      <label>補充後の枚数<span class="hint">足したあと棚にある枚数</span></label>
+      <div class="row2">
+        ${num('as','生命共済', p.ps)}
+        ${num('af','火災共済', p.pf)}
+      </div>
+    </div>
+    <div class="card-actions">
+      <button class="btn btn-line" onclick="closeSheet()">やめる</button>
+      <button class="btn btn-fill" onclick="saveVisit()">記録する</button>
+    </div>`;
+  document.getElementById('sheet').classList.add('on');
+  document.getElementById('scrim').classList.add('on');
+}
+const num = (id,label,val) => `<div>
+  <div style="font-size:11px;color:var(--ink-2);margin-bottom:4px">${label}</div>
+  <div class="stepper">
+    <button onclick="bump('${id}',-1)" aria-label="減らす">−</button>
+    <input id="${id}" type="number" inputmode="numeric" value="${val}" min="0">
+    <button onclick="bump('${id}',1)" aria-label="増やす">＋</button>
+  </div></div>`;
+function bump(id,d){
+  const el = document.getElementById(id);
+  el.value = Math.max(0, (parseInt(el.value) || 0) + d);
+}
+function closeSheet(){
+  document.getElementById('sheet').classList.remove('on');
+  document.getElementById('scrim').classList.remove('on');
+}
+async function saveVisit(){
+  const g = id => parseInt(document.getElementById(id).value) || 0;
+  const d = todayStr();
+  visits = visits.filter(v => !(v.id === sheetId && v.date === d));
+  visits.push({id:sheetId, date:d, p:'s', before:g('bs'), after:g('as')});
+  visits.push({id:sheetId, date:d, p:'f', before:g('bf'), after:g('af')});
+  await store.set('visits', visits);
+  delete alerted[sheetId];
+  closeSheet(); render();
+  toast('記録しました');
+}
+
+/* ===== ナビ ===== */
+function navTo(lat,lng){
+  window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`, '_blank');
+}
+
+/* ===== 巡回ルート =====
+   Googleマップは経由地が最大9か所（出発地・目的地を除く）なので、
+   1ルートあたり10件を上限にしています。 */
+const ROUTE_MAX = 10;
+let routeStart = null;     // {lat,lng,label}
+let routePicked = [];      // 訪問順に並んだ id の配列
+let routeAuto = true;      // 近い順に自動で組むか
+
+function routeCandidates(){
+  return rows().filter(r => r.c.status === 'due' || r.c.status === 'soon');
+}
+/* 現在地から近い順に手繰る（最近傍法）。総当たりはしないが実用上これで十分 */
+function buildRoute(){
+  const cands = routeCandidates().map(r => r.p);
+  const start = routeStart || (pos ? {lat:pos.lat, lng:pos.lng} : null);
+  if(!start){ routePicked = cands.slice(0, ROUTE_MAX).map(p => p.id); return; }
+  const pool = cands.slice();
+  const order = [];
+  let cur = start;
+  while(pool.length && order.length < ROUTE_MAX){
+    let best = 0, bestD = Infinity;
+    pool.forEach((p, i) => {
+      const d = distance(cur.lat, cur.lng, p.lat, p.lng);
+      if(d < bestD){ bestD = d; best = i; }
+    });
+    cur = pool[best];
+    order.push(pool[best].id);
+    pool.splice(best, 1);
+  }
+  routePicked = order;
+}
+function routeLegs(){
+  const start = routeStart || (pos ? {lat:pos.lat, lng:pos.lng, label:'現在地'} : null);
+  const stops = routePicked.map(id => PLACES.find(p => p.id === id));
+  let total = 0, prev = start;
+  const legs = stops.map(p => {
+    const d = prev ? distance(prev.lat, prev.lng, p.lat, p.lng) : null;
+    if(d) total += d;
+    prev = p;
+    return {p, d, c:compute(p)};
+  });
+  return {legs, total, start};
+}
+function routeUrl(){
+  const {start} = routeLegs();
+  const stops = routePicked.map(id => PLACES.find(p => p.id === id));
+  if(!stops.length) return null;
+  const dest = stops[stops.length - 1];
+  const via = stops.slice(0, -1).map(p => `${p.lat},${p.lng}`).join('|');
+  let u = 'https://www.google.com/maps/dir/?api=1';
+  if(start) u += `&origin=${start.lat},${start.lng}`;
+  u += `&destination=${dest.lat},${dest.lng}&travelmode=driving`;
+  if(via) u += `&waypoints=${encodeURIComponent(via)}`;
+  return u;
+}
+function openRoute(){
+  const u = routeUrl();
+  if(!u) return toast('ルートに入れる設置先がありません');
+  window.open(u, '_blank');
+}
+function routeToggle(id){
+  const i = routePicked.indexOf(id);
+  if(i >= 0) routePicked.splice(i, 1);
+  else if(routePicked.length >= ROUTE_MAX) return toast(`1ルートは${ROUTE_MAX}件までです`);
+  else routePicked.push(id);
+  routeAuto = false;
+  renderRoute();
+}
+function routeMove(i, dir){
+  const j = i + dir;
+  if(j < 0 || j >= routePicked.length) return;
+  [routePicked[i], routePicked[j]] = [routePicked[j], routePicked[i]];
+  routeAuto = false;
+  renderRoute();
+}
+function routeRebuild(){ routeAuto = true; buildRoute(); renderRoute(); toast('近い順に組み直しました'); }
+function routeClear(){ routePicked = []; routeAuto = false; renderRoute(); }
+
+function renderRoute(){
+  if(routeAuto && !routePicked.length) buildRoute();
+  const {legs, total, start} = routeLegs();
+  const cands = routeCandidates();
+  const rest = cands.filter(r => !routePicked.includes(r.p.id));
+
+  document.getElementById('p-route').innerHTML = `
+    <div class="setting">
+      <h3>今日回るルート</h3>
+      <p>${start ? '現在地から' : '出発地を決めずに'}、補充が必要な設置先を近い順につなぎます。
+         Googleマップに送るとCarPlayやAndroid Autoの画面にもルートが出ます。</p>
+      ${!start ? `<p style="color:var(--soon);margin:-6px 0 11px">
+        現在地が未取得です。設定タブで巡回モードを開始すると、いる場所から近い順に組めます。</p>` : ''}
+      <div class="route-sum">
+        <div><b>${legs.length}</b><span>件</span></div>
+        <div><b>${total ? (total/1000).toFixed(1) : '—'}</b><span>km（直線）</span></div>
+        <div><b>${cands.length}</b><span>要補充+間もなく</span></div>
+      </div>
+      <button class="btn btn-fill" style="width:100%;margin-top:11px"
+        onclick="openRoute()">Googleマップでルートを開く</button>
+      <div class="card-actions" style="margin-top:8px">
+        <button class="btn btn-line" onclick="routeRebuild()">近い順に組み直す</button>
+        <button class="btn btn-line" onclick="routeClear()">空にする</button>
+      </div>
+    </div>
+
+    ${legs.length ? legs.map(({p,d,c}, i) => `
+      <div class="stop">
+        <div class="stop-no">${i + 1}</div>
+        <div class="stop-body">
+          <div class="stop-name">${p.n}</div>
+          <div class="stop-sub">${d != null ? fmtDist(d) + '・' : ''}${STATUS[c.status].label}
+            ${c.left !== null ? `（${c.left > 0 ? 'あと' + c.left + '日' : Math.abs(c.left) + '日超過'}）` : ''}</div>
+        </div>
+        <div class="stop-ops">
+          <button onclick="routeMove(${i},-1)" aria-label="上へ">▲</button>
+          <button onclick="routeMove(${i},1)" aria-label="下へ">▼</button>
+          <button onclick="routeToggle(${p.id})" aria-label="外す">✕</button>
+        </div>
+      </div>`).join('')
+      : '<div class="empty">補充が必要な設置先がまだありません。<br>訪問を記録すると、ここに巡回ルートが出ます。</div>'}
+
+    ${rest.length ? `<div class="setting" style="margin-top:12px">
+      <h3>ルートに追加できる設置先</h3>
+      <p>あと${Math.max(0, ROUTE_MAX - legs.length)}件まで入れられます。</p>
+      ${rest.slice(0, 30).map(({p,c,d}) => `
+        <button class="add-row" onclick="routeToggle(${p.id})">
+          <span class="add-plus">＋</span>
+          <span class="add-name">${p.n}</span>
+          <span class="add-sub">${d != null ? fmtDist(d) : STATUS[c.status].label}</span>
+        </button>`).join('')}
+    </div>` : ''}`;
+}
+
+/* ===== 地図 =====
+   外部の地図ライブラリが読めない環境でも必ず何か出るよう、二段構えにしています。
+   1. Leaflet + OpenStreetMap のタイル地図（読み込めた場合）
+   2. 内蔵のSVG地図（外部読み込み不要。座標をそのまま点で描画） */
+let mapMode = null;   // 'tile' | 'svg'
+let leafletTried = false;
+
+function initMap(){
+  if(mapMode) { if(mapMode === 'tile' && map) setTimeout(()=>map.invalidateSize(), 50); return; }
+  if(leafletTried) return;
+  leafletTried = true;
+  showSvgMap('地図を読み込んでいます…', false);
+  loadScript('https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css',
+    () => buildTileMap(), () => showSvgMap('通信できないため簡易地図で表示しています。', true));
+}
+function loadScript(js, css, ok, ng){
+  const link = document.createElement('link');
+  link.rel = 'stylesheet'; link.href = css;
+  document.head.appendChild(link);
+  const s = document.createElement('script');
+  s.src = js;
+  const timer = setTimeout(() => { if(!window.L) ng(); }, 6000);
+  s.onload = () => { clearTimeout(timer); window.L ? ok() : ng(); };
+  s.onerror = () => { clearTimeout(timer); ng(); };
+  document.head.appendChild(s);
+}
+function buildTileMap(){
+  try{
+    mapMode = 'tile';
+    document.getElementById('svgmap').classList.remove('on');
+    document.getElementById('map-msg').classList.remove('on');
+    document.getElementById('map').classList.add('on');
+    map = L.map('map', {zoomControl:true}).setView([34.45, 132.85], 9);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+      {maxZoom:18, attribution:'&copy; OpenStreetMap'}).addTo(map);
+    markers = L.layerGroup().addTo(map);
+    drawMarkers();
+    setTimeout(() => map.invalidateSize(), 60);
+  }catch(e){
+    mapMode = null;
+    showSvgMap('地図を表示できないため簡易地図に切り替えました。', true);
+  }
+}
+function showSvgMap(msg, isFallback){
+  mapMode = isFallback ? 'svg' : mapMode;
+  document.getElementById('map').classList.remove('on');
+  document.getElementById('svgmap').classList.add('on');
+  const m = document.getElementById('map-msg');
+  m.innerHTML = msg + (isFallback
+    ? '<button onclick="retryTiles()">通常の地図を再試行</button>' : '');
+  m.classList.add('on');
+  drawSvgMap();
+}
+function retryTiles(){
+  leafletTried = false; mapMode = null;
+  document.getElementById('map-msg').classList.remove('on');
+  initMap();
+}
+
+/* --- 内蔵SVG地図：緯度経度をそのまま平面に落とす --- */
+function drawSvgMap(){
+  const svg = document.getElementById('svgmap');
+  const list = rows();
+  const all = PLACES;
+  const lats = all.map(p => p.lat), lngs = all.map(p => p.lng);
+  const pad = 0.06;
+  const minLat = Math.min(...lats) - pad, maxLat = Math.max(...lats) + pad;
+  const minLng = Math.min(...lngs) - pad, maxLng = Math.max(...lngs) + pad;
+  const W = 1000, H = 700;
+  // 緯度方向の距離が縮む分を補正して縦横比を合わせる
+  const kx = Math.cos((minLat + maxLat) / 2 * Math.PI / 180);
+  const spanX = (maxLng - minLng) * kx, spanY = maxLat - minLat;
+  const scale = Math.min(W / spanX, H / spanY);
+  const offX = (W - spanX * scale) / 2, offY = (H - spanY * scale) / 2;
+  const X = lng => offX + (lng - minLng) * kx * scale;
+  const Y = lat => H - offY - (lat - minLat) * scale;
+
+  let g = '<rect class="sea" x="0" y="0" width="1000" height="700"/>';
+  for(let v = Math.ceil(minLng * 5) / 5; v < maxLng; v += 0.2)
+    g += `<line class="grid" x1="${X(v).toFixed(1)}" y1="0" x2="${X(v).toFixed(1)}" y2="700"/>`
+      +  `<text class="lbl" x="${(X(v)+3).toFixed(1)}" y="694">${v.toFixed(1)}°E</text>`;
+  for(let v = Math.ceil(minLat * 5) / 5; v < maxLat; v += 0.2)
+    g += `<line class="grid" x1="0" y1="${Y(v).toFixed(1)}" x2="1000" y2="${Y(v).toFixed(1)}"/>`
+      +  `<text class="lbl" x="4" y="${(Y(v)-4).toFixed(1)}">${v.toFixed(1)}°N</text>`;
+
+  // 市区町村ごとの重心に地名を置いて、点だけでも位置が分かるようにする
+  const hub = {};
+  all.forEach(p => {
+    (hub[p.c] = hub[p.c] || {n:0, lat:0, lng:0}).n++;
+    hub[p.c].lat += p.lat; hub[p.c].lng += p.lng;
+  });
+  Object.entries(hub).filter(([,v]) => v.n >= 4).forEach(([city,v]) => {
+    g += `<text class="place" x="${X(v.lng / v.n).toFixed(1)}" y="${(Y(v.lat / v.n) - 13).toFixed(1)}"
+           text-anchor="middle">${city}</text>`;
+  });
+
+  const shown = new Set(list.map(r => r.p.id));
+  // 絞り込みで外れた先は薄く残して位置関係が分かるようにする
+  all.forEach(p => {
+    if(shown.has(p.id)) return;
+    g += `<circle cx="${X(p.lng).toFixed(1)}" cy="${Y(p.lat).toFixed(1)}" r="2.5"
+           fill="#B6C4D0" stroke="none"/>`;
+  });
+  list.forEach(({p,c}) => {
+    g += `<circle class="pin" cx="${X(p.lng).toFixed(1)}" cy="${Y(p.lat).toFixed(1)}" r="6"
+           fill="${STATUS[c.status].color}" onclick="openSheet(${p.id})">
+           <title>${p.n}（${STATUS[c.status].label}）</title></circle>`;
+  });
+  if(pos && pos.lng >= minLng && pos.lng <= maxLng && pos.lat >= minLat && pos.lat <= maxLat){
+    g += `<circle cx="${X(pos.lng).toFixed(1)}" cy="${Y(pos.lat).toFixed(1)}" r="13"
+           fill="#1B4D8F" opacity=".22"/>
+          <circle cx="${X(pos.lng).toFixed(1)}" cy="${Y(pos.lat).toFixed(1)}" r="5"
+           fill="#1B4D8F" stroke="#fff" stroke-width="2"/>`;
+  }
+  svg.innerHTML = g;
+}
+
+let meMarker = null, meCircle = null;
+function drawMe(){
+  if(mapMode !== 'tile' || !map) return;
+  if(!pos){
+    if(meMarker){ map.removeLayer(meMarker); map.removeLayer(meCircle); meMarker = meCircle = null; }
+    return;
+  }
+  const ll = [pos.lat, pos.lng];
+  if(meMarker){
+    meMarker.setLatLng(ll); meCircle.setLatLng(ll).setRadius(pos.acc);
+  }else{
+    meCircle = L.circle(ll, {radius:pos.acc, color:'#1B4D8F', weight:1,
+      fillColor:'#1B4D8F', fillOpacity:.12}).addTo(map);
+    meMarker = L.circleMarker(ll, {radius:7, color:'#fff', weight:3,
+      fillColor:'#1B4D8F', fillOpacity:1}).addTo(map);
+  }
+}
+
+/* 現在地ボタン：未開始なら巡回モードを起動し、取得済みならその位置へ寄せる */
+function locateMe(){
+  if(!watchId){ toggleWatch(); toast('現在地を取得しています…'); return; }
+  if(!pos) return toast('現在地を取得しています…');
+  if(mapMode === 'tile' && map) map.setView([pos.lat, pos.lng], 15);
+  else drawSvgMap();
+  toast('現在地に移動しました');
+}
+
+function drawMarkers(){
+  if(mapMode === 'svg'){ drawSvgMap(); return; }
+  if(!markers) return;
+  drawMe();
+  markers.clearLayers();
+  rows().forEach(({p,c}) => {
+    L.circleMarker([p.lat,p.lng], {
+      radius:6, color:'#fff', weight:1.5, fillColor:STATUS[c.status].color, fillOpacity:.95
+    }).bindPopup(
+      `<b>${p.n}</b><br>${p.a}<br>${STATUS[c.status].label}` +
+      (c.next ? `（次回 ${c.next}）` : '') +
+      `<br><a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank">ナビを開く</a>`
+    ).addTo(markers);
+  });
+}
+
+/* ===== 位置監視と近接アラート ===== */
+function toggleWatch(){
+  if(watchId){
+    navigator.geolocation.clearWatch(watchId); watchId = null; pos = null;
+    renderSettings(); render(); toast('巡回モードを終了しました');
+    return;
+  }
+  if(!navigator.geolocation) return toast('この端末では位置情報を使えません');
+  if('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+  watchId = navigator.geolocation.watchPosition(p => {
+    pos = {lat:p.coords.latitude, lng:p.coords.longitude, acc:p.coords.accuracy};
+    checkProximity(); render(); renderSettings();
+  }, err => {
+    const msg = {
+      1:'位置情報が許可されていません。ブラウザのアドレスバーの鍵マークから許可してください',
+      2:'現在地を取得できません。屋外に出るか、端末の位置情報をオンにしてください',
+      3:'現在地の取得に時間がかかっています。そのままお待ちください'
+    }[err.code] || '位置情報を取得できませんでした';
+    toast(msg);
+    if(err.code !== 3){ navigator.geolocation.clearWatch(watchId); watchId = null; }
+    renderSettings(); render();
+  }, {enableHighAccuracy:true, maximumAge:5000, timeout:30000});
+  renderSettings(); render(); toast('巡回モードを開始しました');
+}
+function checkProximity(){
+  if(!pos) return;
+  for(const p of PLACES){
+    const c = compute(p);
+    const want = cfg.alertScope === 'all' ? true
+               : cfg.alertScope === 'due' ? c.status === 'due'
+               : (c.status === 'due' || c.status === 'soon');
+    const d = distance(pos.lat, pos.lng, p.lat, p.lng);
+    if(want && d <= cfg.radius && !alerted[p.id]){
+      alerted[p.id] = true; fireAlert(p, c, d);
+    }
+    if(alerted[p.id] && d > cfg.radius * 2.5) delete alerted[p.id];  // 離れたら再武装
+  }
+}
+function fireAlert(p, c, d, isTest){
+  startAlarm();
+  if('Notification' in window && Notification.permission === 'granted')
+    new Notification(isTest ? 'テスト通知' : '補充対象が近くにあります',
+      {body:`${p.n}${d == null ? '' : `（約${fmtDist(d)}）`}`});
+  const a = document.getElementById('alert');
+  a.innerHTML = `
+    <div class="lead">${isTest ? 'これはテスト通知です' : '補充対象が近くにあります'}</div>
+    <h3>${p.n}</h3>
+    <div class="d">${d == null ? '—' : fmtDist(d)}</div>
+    <div class="addr">${p.a}</div>
+    <div class="left">${c.left === null ? '未記録' : c.left <= 0 ? Math.abs(c.left) + '日超過' : 'あと' + c.left + '日'}</div>
+    <div class="acts">
+      <button class="a-ghost" onclick="dismissAlert()">あとで</button>
+      <button class="a-primary" onclick="dismissAlert();openSheet(${p.id})">補充を記録</button>
+    </div>
+    <button class="a-nav" onclick="stopAlarm();navTo(${p.lat},${p.lng})">ここへナビを開く</button>`;
+  a.style.background = isTest ? 'var(--navy)' : 'var(--due)';
+  a.querySelector('.a-primary').style.color = isTest ? 'var(--navy)' : 'var(--due)';
+  a.classList.add('on');
+}
+/* テスト用：いちばん近い設置先（未測位なら先頭）で通知を1回出す */
+function testAlert(){
+  if('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+  let target = PLACES[0], d = null;
+  if(pos){
+    const sorted = PLACES.map(p => ({p, d:distance(pos.lat, pos.lng, p.lat, p.lng)}))
+                         .sort((a,b) => a.d - b.d)[0];
+    target = sorted.p; d = sorted.d;
+  }
+  fireAlert(target, compute(target), d, true);
+}
+function nearestDist(){
+  if(!pos) return null;
+  return Math.min(...PLACES.map(p => distance(pos.lat, pos.lng, p.lat, p.lng)));
+}
+
+/* ===== 通知音 =====
+   運転中でも気づけるよう、二音のチャイムを繰り返し鳴らします。
+   画面を消しても止まらないよう、停止は明示操作か時間切れのときだけ行います。 */
+let audioCtx = null, alarmTimer = null, alarmStop = null;
+
+function tone(at, freq, dur, vol){
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = 'triangle';
+  o.frequency.setValueAtTime(freq, at);
+  o.connect(g); g.connect(audioCtx.destination);
+  g.gain.setValueAtTime(.0001, at);
+  g.gain.exponentialRampToValueAtTime(vol, at + .015);
+  g.gain.setValueAtTime(vol, at + dur - .08);
+  g.gain.exponentialRampToValueAtTime(.0001, at + dur);
+  o.start(at); o.stop(at + dur + .02);
+}
+function chime(){
+  try{
+    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+    const t = audioCtx.currentTime, v = cfg.volume;
+    // ピーン・ポーン を2回
+    [0, .78].forEach(off => {
+      tone(t + off,        988, .34, v);
+      tone(t + off + .34,  740, .40, v);
+    });
+  }catch(e){}
+}
+function startAlarm(){
+  stopAlarm();
+  chime();
+  if(navigator.vibrate) navigator.vibrate([500,220,500,220,700]);
+  alarmTimer = setInterval(() => {
+    chime();
+    if(navigator.vibrate) navigator.vibrate([500,220,500,220,700]);
+  }, 2600);
+  if(cfg.alarmSec > 0) alarmStop = setTimeout(stopAlarm, cfg.alarmSec * 1000);
+}
+function stopAlarm(){
+  clearInterval(alarmTimer); clearTimeout(alarmStop);
+  alarmTimer = alarmStop = null;
+  if(navigator.vibrate) navigator.vibrate(0);
+}
+function dismissAlert(){
+  stopAlarm();
+  document.getElementById('alert').classList.remove('on');
+}
+
+/* ===== 設定 ===== */
+function renderSettings(){
+  const done = visits.length / 2;
+  document.getElementById('p-set').innerHTML = `
+    ${isStandalone() ? '' : `<div class="setting">
+      <h3>ホーム画面に追加</h3>
+      <p>アイコンから全画面で起動できるようになります。追加すると圏外でも一覧と記録が使えます。</p>
+      <button class="btn btn-fill" style="width:100%" onclick="doInstall()">
+        ${installPrompt ? 'ホーム画面に追加する' : '追加の方法を見る'}</button>
+    </div>`}
+
+    <div class="setting">
+      <h3>巡回モード</h3>
+      <p>現在地を見ながら、補充対象の近くに来たら知らせます。画面を開いている間だけ動きます。</p>
+      <button class="btn ${watchId ? 'btn-line' : 'btn-fill'}" style="width:100%"
+        onclick="toggleWatch()">${watchId ? '巡回モードを終了' : '巡回モードを開始'}</button>
+      ${pos ? `<p style="margin:10px 0 0">現在地 ${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}（誤差 ±${Math.round(pos.acc)}m）</p>` : ''}
+    </div>
+
+    <div class="setting">
+      <h3>通知する距離</h3>
+      <p>設置先にこの距離まで近づいたら知らせます。市街地は200〜300m、郊外は500m前後が目安です。</p>
+      <div class="row">
+        <input type="range" min="100" max="3000" step="50" value="${cfg.radius}"
+          oninput="setCfg('radius', +this.value)">
+        <span class="val">${cfg.radius >= 1000 ? (cfg.radius/1000).toFixed(2).replace(/0$/,'') + ' km' : cfg.radius + ' m'}</span>
+      </div>
+    </div>
+
+    <div class="setting">
+      <h3>通知の対象</h3>
+      <p>期限切れだけにするか、間もなく期限を迎える先も含めるかを選べます。</p>
+      <div class="row" style="gap:7px;flex-wrap:wrap">
+        <button class="chip" aria-pressed="${cfg.alertScope==='due'}"
+          onclick="setCfg('alertScope','due')">要補充のみ</button>
+        <button class="chip" aria-pressed="${cfg.alertScope==='soon'}"
+          onclick="setCfg('alertScope','soon')">間もなくも含める</button>
+        <button class="chip" aria-pressed="${cfg.alertScope==='all'}"
+          onclick="setCfg('alertScope','all')">すべて（テスト用）</button>
+      </div>
+      ${cfg.alertScope === 'all' ? `<p style="margin:10px 0 0;color:var(--due)">
+        テスト用の設定です。補充が不要な設置先でも通知します。確認が済んだら戻してください。</p>` : ''}
+    </div>
+
+    <div class="setting">
+      <h3>通知の鳴らし方</h3>
+      <p>運転中でも気づけるよう、チャイムと振動を繰り返します。止めるまで鳴らし続ける設定もできます。</p>
+      <div class="row" style="gap:7px;flex-wrap:wrap;margin-bottom:12px">
+        ${[[10,'10秒'],[30,'30秒'],[60,'1分'],[0,'止めるまで']].map(([v,l]) =>
+          `<button class="chip" aria-pressed="${cfg.alarmSec===v}"
+             onclick="setCfg('alarmSec',${v})">${l}</button>`).join('')}
+      </div>
+      <div class="row">
+        <span style="font-size:12px;color:var(--ink-2);min-width:32px">音量</span>
+        <input type="range" min="0.1" max="1" step="0.1" value="${cfg.volume}"
+          oninput="setCfg('volume', +this.value)">
+        <span class="val">${Math.round(cfg.volume * 100)}%</span>
+      </div>
+      <p style="margin:11px 0 0">端末のマナーモードが優先されます。音を出したい場合はマナーモードを解除してください。振動は多くの端末でマナーモード中も動きます。</p>
+    </div>
+
+    <div class="setting">
+      <h3>動作テスト</h3>
+      <p>通知の見え方、音、振動をその場で確かめられます。実際に近づかなくても鳴らせます。</p>
+      <button class="btn btn-line" style="width:100%;margin-bottom:8px" onclick="testAlert()">
+        通知を1回鳴らしてみる</button>
+      <p style="margin:0">
+        巡回中の実地テストは、通知の対象を「すべて」に、通知する距離を1km前後に広げるのが手軽です。
+        いま最寄りの設置先まで ${pos ? fmtDist(nearestDist()) : '—（巡回モード開始後に表示）'}。
+      </p>
+    </div>
+
+    <div class="setting">
+      <h3>周期の計算</h3>
+      <p>定番枚数のうち何割が減ったら再訪するかを決めます。0.8なら2割残しで補充に行く計算です。</p>
+      <div class="row">
+        <input type="range" min="0.5" max="1" step="0.05" value="${cfg.safety}"
+          oninput="setCfg('safety', +this.value)">
+        <span class="val">${cfg.safety.toFixed(2)}</span>
+      </div>
+      <p style="margin:11px 0 0">実績がない設置先に使う初期値です。生命 ${cfg.rateS.toFixed(1)} 枚/日、火災 ${cfg.rateF.toFixed(1)} 枚/日。訪問を2回記録すると、その設置先は実測値に切り替わります。</p>
+    </div>
+
+    <div class="setting">
+      <h3>記録の書き出し</h3>
+      <p>訪問記録を ${done} 件ためています。CSVで書き出して、台帳の「補充履歴」シートに貼り付けてください。</p>
+      <button class="btn btn-line" style="width:100%" onclick="exportCSV()">CSVを書き出す</button>
+    </div>
+
+    <div class="setting">
+      <h3>記録の消去</h3>
+      <p>この端末に保存した訪問記録をすべて消します。取り消せません。</p>
+      <button class="btn btn-line" style="width:100%;color:var(--due)" onclick="wipe()">記録をすべて消す</button>
+    </div>`;
+}
+async function setCfg(k,v){ cfg[k] = v; await store.set('cfg', cfg); renderSettings(); render(); }
+
+function exportCSV(){
+  if(!visits.length) return toast('書き出す記録がありません');
+  const name = id => PLACES.find(p => p.id === id).n;
+  const head = '訪問日,名称,商品,補充前の残数,補充後の枚数,担当者\n';
+  const body = visits.slice().sort((a,b)=> a.date < b.date ? -1 : 1)
+    .map(v => [v.date.replace(/-/g,'/'), name(v.id), v.p === 's' ? '生命共済' : '火災共済',
+               v.before, v.after, ''].join(',')).join('\n');
+  const blob = new Blob(['\uFEFF' + head + body], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '補充履歴_' + todayStr() + '.csv';
+  a.click();
+  toast('CSVを書き出しました');
+}
+async function wipe(){
+  if(!confirm('訪問記録をすべて消します。よろしいですか？')) return;
+  visits = []; alerted = {};
+  await store.set('visits', visits);
+  render(); renderSettings(); toast('記録を消しました');
+}
+
+/* ===== 雑務 ===== */
+function tab(name){
+  ui.tab = name;
+  ['list','map','route','set'].forEach(n => {
+    document.getElementById('p-'+n).classList.toggle('on', n === name);
+    document.getElementById('t-'+n).setAttribute('aria-pressed', n === name);
+  });
+  document.getElementById('tools').style.display = name === 'list' ? 'flex' : 'none';
+  document.getElementById('filters').style.display = (name === 'set' || name === 'route') ? 'none' : 'flex';
+  if(name === 'route') renderRoute();
+  if(name === 'map'){
+    initMap();
+    if(!watchId) setTimeout(() => toast('右上のボタンで現在地を表示できます'), 400);
+  }
+  if(name === 'set') renderSettings();
+}
+let toastTimer;
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('on'), 2400);
+}
+document.getElementById('q').addEventListener('input', e => { ui.q = e.target.value; render(); });
+document.getElementById('sort').addEventListener('change', e => { ui.sort = e.target.value; render(); });
+
+/* ===== ホーム画面への追加とオフライン対応 ===== */
+let installPrompt = null;
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault(); installPrompt = e; renderSettings();
+});
+window.addEventListener('appinstalled', () => { installPrompt = null; renderSettings(); });
+async function doInstall(){
+  if(!installPrompt) return toast('ブラウザのメニューから「ホーム画面に追加」を選んでください');
+  installPrompt.prompt();
+  await installPrompt.userChoice;
+  installPrompt = null; renderSettings();
+}
+const isStandalone = () =>
+  window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+(async function init(){
+  visits = (await store.get('visits')) || [];
+  const saved = await store.get('cfg');
+  if(saved) cfg = Object.assign(cfg, saved);
+  renderFilters(); render(); renderSettings();
+})();
+</script>
