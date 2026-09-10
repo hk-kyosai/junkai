@@ -253,6 +253,10 @@ nav svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8}
   background:var(--paper)}
 .val{font-family:var(--num);font-size:13px;min-width:62px;text-align:right}
 .empty{text-align:center;color:var(--ink-2);font-size:13px;padding:44px 20px;line-height:1.8}
+.more{width:100%;height:46px;border-radius:10px;border:1px solid var(--line);
+  background:var(--surface);font-size:13.5px;font-weight:700;color:var(--navy);
+  box-shadow:var(--shadow);margin-top:4px}
+.more:active{background:var(--paper)}
 .toast{position:fixed;left:50%;bottom:78px;transform:translateX(-50%) translateY(14px);
   background:var(--ink);color:#fff;padding:11px 17px;border-radius:9px;font-size:13px;
   opacity:0;transition:.22s;z-index:950;pointer-events:none;max-width:88vw;text-align:center}
@@ -367,7 +371,7 @@ let visits = [];      // {id, date:'YYYY-MM-DD', p:'s'|'f', before, after}
 let cfg = { safety:0.8, rateS:1.0, rateF:0.6, min:7, max:90, soon:7, radius:300,
             alertScope:'due', alarmSec:30, volume:0.5, pin:'', user:'', syncUrl:'', syncKey:'' };
 let pos = null, watchId = null, alerted = {}, map = null, markers = null;
-let ui = { tab:'list', q:'', sort:'days', kubun:'all', city:'all', status:'all' };
+let ui = { tab:'list', q:'', sort:'days', kubun:'all', city:'all', status:'all', limit:100 };
 
 const todayStr = () => new Date().toISOString().slice(0,10);
 const dayDiff = (a,b) => Math.round((new Date(b) - new Date(a)) / 86400000);
@@ -459,13 +463,16 @@ function rows(){
 /* ===== 描画 ===== */
 function render(){
   const list = rows();
-  document.getElementById('count').textContent = list.length + ' / ' + PLACES.length + ' 件';
+  document.getElementById('count').textContent =
+    (list.length === PLACES.length ? PLACES.length + ' 件'
+      : list.length + ' / ' + PLACES.length + ' 件')
+    + (list.length > ui.limit ? `（${ui.limit}件表示中）` : '');
   const box = document.getElementById('list');
 
   if(!list.length){
     box.innerHTML = '<div class="empty">条件に合う設置先がありません。<br>絞り込みを変えてみてください。</div>';
   } else {
-    box.innerHTML = list.slice(0, 200).map(({p,c,d}) => {
+    box.innerHTML = list.slice(0, ui.limit).map(({p,c,d}) => {
       const st = STATUS[c.status];
       const meter = (k, label, color) => {
         const o = c[k];
@@ -501,7 +508,9 @@ function render(){
           </div>
         </div>
       </article>`;
-    }).join('');
+    }).join('')
+    + (list.length > ui.limit ? `<button class="more" onclick="showMore()">
+        さらに表示（残り ${list.length - ui.limit} 件）</button>` : '');
   }
   if(mapMode) drawMarkers();
   renderRadar();
@@ -515,14 +524,17 @@ function renderFilters(){
   f.innerHTML =
     chip('すべて','status','all') + chip('要補充+間もなく','status','todo') + chip('要補充のみ','status','due') +
     chip('設置なし','status','off') +
-    chip('スーパー','kubun','スーパー') + chip('銀行','kubun','銀行') +
+    [...new Set(PLACES.map(p => p.k))].filter(Boolean).sort()
+        .map(k => chip(k, 'kubun', k)).join('') +
     `<select class="chip" style="padding-right:24px" onchange="setFilter('city',this.value)">
       <option value="all">市区町村</option>
       ${cities.map(c => `<option value="${c}" ${ui.city===c?'selected':''}>${c}</option>`).join('')}
     </select>`;
 }
+function showMore(){ ui.limit += 200; render(); }
 function setFilter(g,v){
   ui[g] = (ui[g] === v && g !== 'city') ? 'all' : v;
+  ui.limit = 100;
   renderFilters(); render();
 }
 
@@ -676,12 +688,18 @@ async function syncNow(silent){
       // 書き込みもURLに載せて送ります。長くなりすぎないよう20件ずつに分けます。
       for(let i = 0; i < pending.length; i += 20){
         const chunk = pending.slice(i, i + 20);
-        const body = chunk.map(v => ({
-          date: v.date, name: PLACES.find(p => p.id === v.id).n,
-          p: v.p, before: v.before, after: v.after, u: v.u || ''
-        }));
+        const body = chunk.map(v => {
+          const place = PLACES.find(p => p.id === v.id);
+          return {
+            date: v.date, name: (place && place.n) || v.n || '',
+            p: v.p, before: Number(v.before) || 0, after: Number(v.after) || 0,
+            u: String(v.u || '').slice(0, 30)
+          };
+        }).filter(v => v.name && /^\d{4}-\d{2}-\d{2}$/.test(v.date));
+        if(!body.length){ chunk.forEach(v => v.sent = true); continue; }
         const j = await callSync({action:'add', payload: JSON.stringify(body)});
         if(!j.ok) throw new Error(j.error || '送信に失敗しました');
+        if(j.skipped) toast(`${j.skipped}件は設置先と一致しないため見送りました`);
         chunk.forEach(v => v.sent = true);
       }
       await store.set('visits', visits);
@@ -1496,10 +1514,12 @@ function toast(msg){
   const q = document.getElementById('q');
   let imeOn = false;
   q.addEventListener('compositionstart', () => { imeOn = true; });
-  q.addEventListener('compositionend', () => { imeOn = false; ui.q = q.value; render(); });
-  q.addEventListener('input', () => { if(imeOn) return; ui.q = q.value; render(); });
+  q.addEventListener('compositionend', () => { imeOn = false; ui.q = q.value; ui.limit = 100; render(); });
+  q.addEventListener('input', () => { if(imeOn) return; ui.q = q.value; ui.limit = 100; render(); });
 })();
-document.getElementById('sort').addEventListener('change', e => { ui.sort = e.target.value; render(); });
+document.getElementById('sort').addEventListener('change', e => {
+  ui.sort = e.target.value; ui.limit = 100; render();
+});
 
 /* ===== 簡易パスコードロック =====
    端末を他人に触られたときの目隠しです。ページ自体は誰でも開けるため、
